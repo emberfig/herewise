@@ -1,0 +1,30 @@
+# Device backups hold student names and fingerprint templates. Never commit.
+device-backups/
+# Local database and runtime data
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+instance/
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+build/
+dist/
+# PyInstaller writes a throwaway .spec wherever it is run without one. The two in packaging/ are
+# written by hand and are the build, so they are kept.
+*.spec
+!packaging/*.spec
+# Made by packaging/herewise.spec and packaging/build.py on every build.
+packaging/VERSION
+packaging/payload/
+
+# Test certificates and keys never enter the repo.
+*.pfx
+*.p12
+
+# The real 200 Level roster lives beside the repo, never in it.
+data/pct200_roster.csv

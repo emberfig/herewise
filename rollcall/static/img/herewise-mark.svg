@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"
+     role="img" aria-label="Herewise">
+  <title>Herewise</title>
+  <rect x="12" y="8" width="8" height="48" fill="currentColor"/>
+  <rect x="44" y="8" width="8" height="48" fill="currentColor"/>
+  <polyline points="15 31 24 40 49 24" fill="none" stroke="var(--hw-accent, #2C498B)" stroke-width="6"
+            stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

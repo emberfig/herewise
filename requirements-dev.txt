@@ -1,0 +1,27 @@
+-r requirements.txt
+pytest==9.1.1
+httpx==0.28.1
+# Imported directly by design/logo.py and tests/test_logo.py. It also arrives through reportlab,
+# which is not a reason to rely on it.
+pillow==12.3.0
+
+# The MIT-licensed alternative to pyzk, kept working so the GPL question stays open (see
+# docs/RELEASE-READINESS.md). Not used unless ROLLCALL_DEVICE_BACKEND=pyzatt. prettytable is listed
+# because pyzatt imports it without declaring it.
+pyzatt @ git+https://github.com/adrobinoga/pyzatt@dc30714ed641388f53537319f6c0e7bd8dba544a
+prettytable==3.18.0
+
+# Builds the app folder and the installer (packaging/build.py). Build only. PyInstaller is GPL-2.0,
+# but what it puts inside the app is not: its bootloader carries an exception allowing it to be
+# embedded and distributed without restriction, and its runtime hooks are Apache-2.0 (both read from
+# its own COPYING.txt, and the hooks' own headers, on 2026-09-21). It brings altgraph (MIT), pefile
+# (MIT), pywin32-ctypes (BSD-3-Clause) and pyinstaller-hooks-contrib, none of which ships.
+pyinstaller==6.16.0
+
+# Build and test only, none of it ships (2026-09-21):
+# cryptography makes the throwaway certificate in packaging/test_certificate.py. Apache-2.0 OR BSD-3-Clause.
+cryptography==50.0.1
+# Not pip packages, recorded here so the versions are in one place:
+#   axe-core 4.13.0 (MPL-2.0), vendored in scripts/vendor/, used by scripts/check_screens.mjs.
+#   Microsoft.Windows.SDK.BuildTools 10.0.28000.2705 from nuget.org, for signtool.exe; extract to
+#   %USERPROFILE%\herewise-build-tools, never under %LOCALAPPDATA% (see docs/PROJECT-HANDOFF.md, Sign a build).

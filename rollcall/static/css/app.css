@@ -1,0 +1,351 @@
+/* Herewise shell: the rail, the top bar, the banners and the page frame around every screen.
+   Widgets live in ui.css. Colour comes only from tokens.css, size and space only from base.css.
+   Load order: tokens.css, fonts.css, base.css, ui.css, app.css. */
+
+/* -- the frame ----------------------------------------------------------------------------- */
+
+/* The shell fills the window. The mockups left a strip of page beside the top bar on four frames
+   (docs/DESIGN-DEVIATIONS.md, screen 3); a grid with no fixed widths cannot do that.
+   Two columns only, with the top bar, the banner and the page stacked inside the right one: a
+   banner placed as a third grid child landed in an implicit row under the rail and stopped the rail
+   reaching the bottom of the window. */
+.hw-app {
+  display: grid;
+  grid-template-columns: var(--hw-rail-width, 232px) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.hw-content { display: flex; flex-direction: column; min-width: 0; }
+
+.hw-app[data-chrome="none"] { grid-template-columns: minmax(0, 1fr); }
+.hw-app[data-chrome="none"] .hw-rail, .hw-app[data-chrome="none"] .hw-topbar { display: none; }
+
+/* -- the rail ------------------------------------------------------------------------------ */
+
+/* Pinned to the window, so the sections and the studio's credit stay in view on a long page: the
+   rail used to stretch with the document and its foot was only seen after scrolling to the end. */
+.hw-rail {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--hw-space-4);
+  padding: var(--hw-space-4) 0 var(--hw-space-4);
+  background: var(--hw-sunken);
+  border-inline-end: var(--hw-rule-width) solid var(--hw-rule);
+}
+
+.hw-rail__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--hw-space-3);
+  padding-inline: var(--hw-space-4);
+  color: var(--hw-ink);
+  text-decoration: none;
+}
+.hw-rail__brand svg { width: 32px; height: 32px; flex: none; }
+.hw-rail__brand span {
+  font-size: var(--hw-text-section);
+  font-weight: var(--hw-weight-emphasis);
+  letter-spacing: -0.02em;
+}
+
+.hw-rail__nav { display: flex; flex-direction: column; gap: 2px; padding-inline: var(--hw-space-2); }
+
+/* Three signals on the current item, never colour alone: a 4 px bar, heavier type and a fill. */
+.hw-rail__item {
+  display: flex;
+  align-items: center;
+  gap: var(--hw-space-3);
+  min-height: var(--hw-target-min);
+  padding: var(--hw-space-2) var(--hw-space-3);
+  border-inline-start: 4px solid transparent;
+  border-radius: 0 var(--hw-radius-control) var(--hw-radius-control) 0;
+  color: var(--hw-ink);
+  font-size: var(--hw-text-lead);
+  text-decoration: none;
+}
+.hw-rail__item:hover { background: var(--hw-excused-soft); }
+.hw-rail__item[aria-current="page"] {
+  background: var(--hw-excused-soft);
+  border-inline-start-color: var(--hw-accent);
+  font-weight: var(--hw-weight-emphasis);
+}
+.hw-rail__item svg { width: 20px; height: 20px; flex: none; color: var(--hw-ink-muted); }
+.hw-rail__item[aria-current="page"] svg { color: var(--hw-ink); }
+
+/* A section's own screens, shown while that section is the one you are in. Indented under the icon
+   so they read as belonging to it, and each one a full-width target rather than a word. */
+.hw-rail__children { display: grid; padding-block-end: var(--hw-space-2); }
+.hw-rail__child {
+  display: flex;
+  align-items: center;
+  min-height: var(--hw-target-min);
+  padding: var(--hw-space-1) var(--hw-space-3) var(--hw-space-1) calc(var(--hw-space-3) + 32px);
+  border-inline-start: 4px solid transparent;
+  color: var(--hw-ink-muted);
+  text-decoration: none;
+}
+.hw-rail__child:hover { background: var(--hw-excused-soft); color: var(--hw-ink); }
+.hw-rail__child[aria-current="page"] {
+  color: var(--hw-ink);
+  font-weight: var(--hw-weight-emphasis);
+  border-inline-start-color: var(--hw-accent);
+}
+
+.hw-rail__foot {
+  margin-block-start: auto;
+  padding: var(--hw-space-4) var(--hw-space-4) 0;
+  border-block-start: var(--hw-rule-width) solid var(--hw-rule);
+  color: var(--hw-ink-muted);
+  font-size: var(--hw-text-body);
+}
+.hw-rail__foot b { display: block; color: var(--hw-ink); font-weight: var(--hw-weight-body); }
+
+/* The studio's credit: on every screen, at every width, and quieter than anything that is the
+   register's own. The link is underlined, so it is not told apart by colour alone. */
+.hw-rail__credit { padding-inline: var(--hw-space-4); }
+.hw-credit { margin: 0; color: var(--hw-ink-muted); font-size: var(--hw-text-caption); }
+.hw-credit__link { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.hw-credit__link:hover { color: var(--hw-ink); }
+.hw-column > .hw-credit { margin-block-start: var(--hw-space-4); text-align: center; }
+
+/* -- the top bar --------------------------------------------------------------------------- */
+
+.hw-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--hw-space-4);
+  padding: var(--hw-space-2) var(--hw-space-6);
+  min-height: 56px;
+  background: var(--hw-paper);
+  border-block-end: var(--hw-rule-width) solid var(--hw-rule);
+}
+
+.hw-topbar__session { color: var(--hw-ink-muted); white-space: nowrap; }
+
+.hw-topbar__search { flex: 1 1 380px; max-width: 480px; }
+/* The mockup's search field was too narrow for its own placeholder, which wrapped to two lines. */
+.hw-topbar__search input { width: 100%; }
+
+.hw-topbar__account {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  margin-inline-start: auto;
+  padding: var(--hw-space-1) var(--hw-space-2);
+  background: none;
+  border: var(--hw-rule-width) solid transparent;
+  border-radius: var(--hw-radius-control);
+  color: inherit;
+  font: inherit;
+  text-align: end;
+  cursor: pointer;
+}
+.hw-topbar__account:hover { border-color: var(--hw-rule); }
+.hw-topbar__account b { font-weight: var(--hw-weight-emphasis); }
+.hw-topbar__account span { color: var(--hw-ink-muted); font-size: var(--hw-text-caption); }
+
+/* -- the device chip ----------------------------------------------------------------------- */
+/* One source of truth per screen: the chip is set from the same state as the body, never guessed
+   (docs/DESIGN-DEVIATIONS.md, standing deviation 4). */
+
+.hw-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hw-space-2);
+  padding: var(--hw-space-1) var(--hw-space-3);
+  border-radius: var(--hw-radius-pill);
+  font-size: var(--hw-text-body);
+  font-weight: var(--hw-weight-label);
+  white-space: nowrap;
+}
+.hw-chip__glyph { font-weight: var(--hw-weight-emphasis); }
+/* When the state was last true. Quiet, because the state is the thing being read, but present,
+   because "connected" with no time on it went on being believed after the cable came out. */
+/* No opacity: 0.75 of the chip's own green on its own background measured 3.23:1 in the light
+   theme, under the 4.5:1 this app keeps (axe-core, 2026-09-22). The lighter weight and the
+   separator are enough to make it the quieter half. */
+.hw-chip__since { font-weight: var(--hw-weight-body); }
+.hw-chip__since::before { content: " · "; }
+.hw-chip[data-state="connected"] { background: var(--hw-present-soft); color: var(--hw-present); }
+.hw-chip[data-state="unreachable"], .hw-chip[data-state="wrong"] { background: var(--hw-absent-soft); color: var(--hw-absent); }
+.hw-chip[data-state="busy"] { background: var(--hw-accent-soft); color: var(--hw-accent); }
+.hw-chip[data-state="unknown"] { background: var(--hw-excused-soft); color: var(--hw-excused); }
+
+/* -- banners ------------------------------------------------------------------------------- */
+/* One at a time, highest first (docs/SCREENS.md). */
+
+.hw-banner {
+  display: flex;
+  align-items: baseline;
+  gap: var(--hw-space-3);
+  padding: var(--hw-space-3) var(--hw-space-6);
+  border-block-end: var(--hw-rule-width) solid var(--hw-rule);
+  font-size: var(--hw-text-body);
+}
+.hw-banner[data-tone="warn"] { background: var(--hw-absent-soft); color: var(--hw-absent); }
+.hw-banner[data-tone="busy"] { background: var(--hw-accent-soft); color: var(--hw-ink); }
+.hw-banner[data-tone="info"] { background: var(--hw-accent-soft); color: var(--hw-ink); }
+.hw-banner a { color: inherit; font-weight: var(--hw-weight-emphasis); }
+.hw-banner__spacer { margin-inline-start: auto; }
+
+/* -- the page ------------------------------------------------------------------------------ */
+
+.hw-main { flex: 1; min-width: 0; }
+/* The page region takes focus on every route change so a screen reader announces the new screen
+   (main.js). It is not a control, so it draws no ring: in the packaged window, where nothing has
+   been clicked yet on first load, the ring outlined the whole page. Controls keep theirs. */
+.hw-main:focus { outline: none; }
+/* The same for an answer panel that takes focus after the screen redraws under the control that
+   was pressed (the Ethernet setup, 0.1.16): it is where the result is read, not a control. */
+.hw-panel[tabindex="-1"]:focus { outline: none; }
+
+/* Capped so a line of prose and a row of figures stay readable, and centred in what is left. It
+   was capped and left-aligned, so on a 1,920px window the page ended at 1,200px with 490px of dead
+   space beside it and the eye travelling back to the far left for every heading (reported on a
+   second run with a maximised window, 2026-09-22). 1,320px, because the course header carries four
+   figures and a tab row and they were tight at 1,200. */
+.hw-page {
+  max-width: 1320px;
+  margin-inline: auto;
+  padding: var(--hw-space-8) var(--hw-space-6) var(--hw-space-16);
+}
+.hw-page--wide { max-width: none; }
+
+.hw-page__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--hw-space-4);
+  margin-block-end: var(--hw-space-8);
+}
+.hw-page__titles { min-width: 0; }
+.hw-page__title {
+  margin: 0;
+  font-family: var(--hw-font-display);
+  font-weight: 400;
+  font-size: var(--hw-text-display);
+  line-height: 1.05;
+}
+.hw-page__subtitle { margin: var(--hw-space-1) 0 0; color: var(--hw-ink-muted); }
+.hw-page__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--hw-space-2);
+  margin-inline-start: auto;
+}
+.hw-page__actions > .hw-row { justify-content: flex-end; }
+
+/* -- the sticky action bar ----------------------------------------------------------------- */
+/* For a form taller than the window. Sticky, not fixed: it stays inside the page column, so it
+   never covers the rail and it stops at the end of the form rather than floating over the footer. */
+
+.hw-sticky {
+  position: sticky;
+  /* The page's own bottom padding would otherwise leave it hanging 64px above the window edge. */
+  inset-block-end: calc(var(--hw-space-16) * -1);
+  z-index: 2;
+  margin-block-start: var(--hw-space-8);
+  /* Reaches the full width of the page region, so it reads as a bar and not as another card. */
+  margin-inline: calc(var(--hw-space-6) * -1);
+  padding: var(--hw-space-3) var(--hw-space-6);
+  background: var(--hw-paper);
+  border-block-start: var(--hw-rule-width) solid var(--hw-rule);
+}
+.hw-sticky__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--hw-space-4);
+  min-height: 44px;
+}
+/* The state of the form on the left, the button that acts on it on the right (Serial Position: the
+   most important action is the last thing read). */
+.hw-sticky__inner > :last-child { margin-inline-start: auto; }
+
+.hw-section { margin-block-end: var(--hw-space-8); }
+.hw-section__title {
+  margin: 0 0 var(--hw-space-4);
+  font-size: var(--hw-text-section);
+  font-weight: var(--hw-weight-emphasis);
+}
+.hw-section__help { margin: var(--hw-space-3) 0 0; color: var(--hw-ink-muted); }
+
+/* -- the signed-out frame (sign in, first-run setup) --------------------------------------- */
+
+/* Anchored at a fixed top offset, not centred: a panel appearing must push only what is below it,
+   or the password field moves away from where someone was just typing (screen 2 deviation). */
+.hw-column {
+  width: min(100% - var(--hw-space-8), 420px);
+  margin-inline: auto;
+  padding-block: 96px var(--hw-space-16);
+}
+.hw-column--wide { width: min(100% - var(--hw-space-8), 720px); padding-block: 48px var(--hw-space-16); }
+
+.hw-column__brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--hw-space-3);
+  margin-block-end: var(--hw-space-6);
+  color: var(--hw-ink);
+}
+.hw-column__brand svg { width: 36px; height: 36px; }
+.hw-column__brand span {
+  font-size: var(--hw-text-title);
+  font-weight: var(--hw-weight-emphasis);
+  letter-spacing: -0.02em;
+}
+.hw-column__lead { margin: calc(var(--hw-space-4) * -1) 0 var(--hw-space-6); color: var(--hw-ink-muted); text-align: center; }
+.hw-column__foot { margin-block-start: var(--hw-space-4); color: var(--hw-ink-muted); text-align: center; }
+.hw-column__note { margin-block-start: var(--hw-space-16); color: var(--hw-ink-muted); text-align: center; font-size: var(--hw-text-body); }
+
+/* The rail gets narrower before it gives up its words. It used to drop to icons at 1100px, which
+   put a 1024px or 1280px window, both ordinary laptop sizes, in front of seven unlabelled glyphs
+   with no way to tell Enrolment from Device. Words cost 130px; losing them costs the navigation. */
+@media (max-width: 1280px) {
+  .hw-app { --hw-rail-width: 196px; }
+}
+
+@media (max-width: 980px) {
+  .hw-app { --hw-rail-width: 64px; }
+  .hw-rail__brand span, .hw-rail__item span, .hw-rail__foot { display: none; }
+  .hw-rail__item { justify-content: center; }
+  /* A 64px rail has no room for a section's children, and a column of first letters is worse than
+     nothing: the section's own screen lists them as cards. */
+  .hw-rail__children { display: none; }
+  /* 64 px wide: "Made by" on one line and the studio's name under it, centred. */
+  /* The footer that pushed it down is hidden here, so it takes the bottom itself. */
+  .hw-rail__credit { margin-block-start: auto; padding-inline: var(--hw-space-1); text-align: center; }
+  .hw-rail__credit .hw-credit__link { display: block; }
+}
+
+@media (max-width: 720px) {
+  .hw-topbar__session, .hw-topbar__account span { display: none; }
+  .hw-page { padding-inline: var(--hw-space-4); }
+}
+
+/* -- the course header figures -------------------------------------------------------------- */
+
+.hw-headline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--hw-space-8);
+  margin-block: var(--hw-space-6) var(--hw-space-8);
+}
+.hw-headline__label { margin: 0; color: var(--hw-ink-muted); font-size: var(--hw-text-body); }
+.hw-headline__value {
+  margin: var(--hw-space-1) 0 0;
+  font-size: var(--hw-text-title);
+  font-weight: var(--hw-weight-emphasis);
+  line-height: 1.1;
+}
+.hw-headline__note { margin: var(--hw-space-1) 0 0; color: var(--hw-ink-muted); font-size: var(--hw-text-body); }
+
+/* A chip never wraps: "300 Level" came back on two lines in the mockup. */
+.hw-chip, .hw-pill { white-space: nowrap; }

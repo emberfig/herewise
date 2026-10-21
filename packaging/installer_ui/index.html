@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'">
+  <title>Herewise Setup</title>
+  <!-- The app's own colour, type and space, copied in at build time (installer_window.stage_ui), so
+       the installer can never drift from the program it installs. -->
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="installer.css">
+  <script type="module" src="installer.js"></script>
+</head>
+<body>
+  <div class="setup" aria-busy="true">
+    <!-- The rail: who this is, where the person is in it, and which version. The shape every
+         Windows installer has taught people, so nothing about it needs learning. -->
+    <aside class="rail" aria-label="Herewise Setup">
+      <div class="rail__brand">
+        <svg class="rail__mark" viewBox="0 0 64 64" aria-hidden="true">
+          <rect x="12" y="8" width="8" height="48" fill="currentColor"/>
+          <rect x="44" y="8" width="8" height="48" fill="currentColor"/>
+          <polyline points="15 31 24 40 49 24" fill="none" stroke="var(--hw-accent)" stroke-width="6"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="rail__name">Herewise</span>
+      </div>
+      <p class="rail__tagline">Lecture attendance from a fingerprint terminal</p>
+      <ol class="stages" id="stages" aria-label="Steps"></ol>
+      <p class="rail__foot"><span class="hw-tnum" data-bind="version"></span><br>Made by Emberfig</p>
+    </aside>
+
+    <section class="pane">
+      <!-- One screen at a time. Each has its title, what it says, and its own buttons below. -->
+      <main class="pane__body" id="screen" tabindex="-1"></main>
+      <footer class="pane__foot">
+        <p class="pane__note" id="note"></p>
+        <div class="pane__actions" id="actions"></div>
+      </footer>
+    </section>
+  </div>
+
+  <p class="hw-visually-hidden" role="status" aria-live="polite" id="live"></p>
+</body>
+</html>

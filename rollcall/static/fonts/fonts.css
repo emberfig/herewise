@@ -1,0 +1,75 @@
+/* Herewise typefaces. Bundled, never fetched: the PRD forbids loading anything at runtime, and this
+   app runs on a machine with no internet in a lecture theatre.
+
+   Inter is the variable font, one file for every weight from 100 to 900, which is why there is no
+   separate Bold file to go stale. Instrument Serif is display only: screen titles and large figures,
+   never below 24 px, never in a table.
+
+   Licences sit beside the files: Inter-OFL.txt and InstrumentSerif-OFL.txt, both SIL OFL 1.1. Keep
+   them next to the fonts if the fonts ever move. */
+
+@font-face {
+  font-family: "Inter";
+  src: url("Inter-Variable.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("Inter-Italic-Variable.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("InstrumentSerif-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("InstrumentSerif-Italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: block;
+}
+
+:root {
+  --hw-font-ui: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --hw-font-display: "Instrument Serif", Georgia, "Times New Roman", serif;
+}
+
+body {
+  font-family: var(--hw-font-ui);
+  /* Contextual alternates off: Inter's default turns some pairs into ligatures that do not help a
+     matric number. */
+  font-feature-settings: "calt" 0;
+}
+
+/* Numbers that line up in a column: IDs, times, counts, percentages. The register is full of them and
+   proportional figures make a column of them ragged. */
+.hw-tnum,
+table,
+.hw-sheet {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "calt" 0;
+}
+
+/* Device IDs and matric numbers, where a zero must never be read as an O. */
+.hw-ids {
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: "tnum" 1, "zero" 1, "calt" 0;
+}
+
+/* Display only: screen titles and large figures. Never below 24 px, never in a table. */
+.hw-display {
+  font-family: var(--hw-font-display);
+  font-weight: 400;
+  letter-spacing: 0;
+}

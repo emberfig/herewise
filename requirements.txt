@@ -1,0 +1,21 @@
+# pyzk from GitHub, pinned. PyPI's 0.9 (2019-08-13) misses about 30 later fixes, including
+# clear_data() crashing on Python 3. This commit was tested against the K40 on 2026-09-15.
+pyzk @ git+https://github.com/fananimi/pyzk@f29709c17bb8f1bbb5382d2670b493207cb35ff1
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+python-multipart==0.0.32
+pydantic==2.13.5
+openpyxl==3.1.5
+# Reads the old binary .xls the university's portal hands out, which openpyxl cannot: it reads
+# .xlsx only. BSD-3-Clause, pure Python, read only (xlrd 2.x dropped writing and .xlsx).
+xlrd==2.0.2
+reportlab==5.0.1
+
+# The app's window (rollcall/window.py): the WebView2 control built into Windows, reached through
+# pythonnet. Both ship inside the build and are named on the About screen. Licences checked on
+# 2026-09-21: pywebview BSD-3-Clause, pythonnet MIT. What they bring with them on Windows also ships:
+# clr_loader 0.3.1 (MIT, read from its LICENSE file because its metadata states none), cffi (MIT-0),
+# pycparser (BSD-3-Clause), proxy_tools 0.1.0 (MIT), bottle 0.13.4 (MIT), and typing_extensions
+# (PSF-2.0, already here through pydantic). A source checkout without them opens in the browser.
+pywebview==6.1
+pythonnet==3.1.0; sys_platform == "win32"

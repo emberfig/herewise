@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Herewise</title>
+<link rel="icon" href="/img/herewise.ico" sizes="any">
+<!-- Everything below ships with the app. Nothing is ever fetched from outside: this runs in a
+     lecture theatre with no internet (PRD), and the Content-Security-Policy in rollcall/app.py
+     refuses it anyway. -->
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/fonts/fonts.css">
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/ui.css">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<a class="hw-visually-hidden" href="#main">Skip to the page</a>
+<div id="app"></div>
+<noscript>
+  <p style="padding:24px">Herewise needs JavaScript, which is switched off in this browser. If the
+  app opened in its own window, close it and open Herewise again.</p>
+</noscript>
+<script type="module" src="/app/main.js"></script>
+</body>
+</html>

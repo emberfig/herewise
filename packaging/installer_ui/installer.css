@@ -1,0 +1,272 @@
+/* The installer window. Colour, type and space are the app's own tokens (tokens.css, base.css), so
+   nothing here is a colour value and nothing is a size the app does not already use.
+
+   The layout is the one every Windows installer has taught people: the brand and the steps in a
+   rail down the left, one screen's worth of words beside it, and the buttons at the bottom right,
+   with the one to press last (Jakob's law; Serial Position). One primary button per screen. */
+
+html, body { height: 100%; }
+body { overflow: hidden; user-select: none; -webkit-user-select: none; }
+
+.setup {
+  display: grid;
+  grid-template-columns: 13.5rem minmax(0, 1fr);
+  height: 100vh;
+  overflow: hidden;
+  background: var(--hw-paper);
+}
+
+/* -- the rail ------------------------------------------------------------------------------------ */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  padding: var(--hw-space-8) var(--hw-space-6) var(--hw-space-6);
+  background: var(--hw-sunken);
+  border-right: var(--hw-rule-width) solid var(--hw-rule);
+}
+.rail__brand { display: flex; align-items: center; gap: var(--hw-space-2); }
+.rail__mark { width: 28px; height: 28px; color: var(--hw-ink); }
+.rail__name { font-size: var(--hw-text-section); font-weight: var(--hw-weight-emphasis); letter-spacing: -0.01em; }
+.rail__tagline { margin: var(--hw-space-2) 0 0; color: var(--hw-ink-muted); font-size: var(--hw-text-table); line-height: 1.5; }
+.rail__foot { margin: auto 0 0; color: var(--hw-ink-muted); font-size: var(--hw-text-caption); line-height: 1.6; }
+
+/* Where the person is: a dot for each step, the current one filled and named in bold, the finished
+   ones ticked. Shape and weight carry it as well as colour. */
+.stages { margin: var(--hw-space-8) 0 0; padding: 0; list-style: none; display: grid; gap: var(--hw-space-4); }
+.stages__item { display: flex; align-items: center; gap: var(--hw-space-3); color: var(--hw-ink-muted); }
+.stages__dot {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--hw-radius-pill);
+  border: var(--hw-rule-width-strong) solid var(--hw-rule-strong);
+  font-size: var(--hw-text-caption);
+  font-weight: var(--hw-weight-emphasis);
+}
+.stages__item[aria-current="step"] { color: var(--hw-ink); font-weight: var(--hw-weight-emphasis); }
+.stages__item[aria-current="step"] .stages__dot { border-color: var(--hw-accent); background: var(--hw-accent); color: var(--hw-on-accent); }
+.stages__item[data-state="done"] { color: var(--hw-ink); }
+.stages__item[data-state="done"] .stages__dot { border-color: var(--hw-present); color: var(--hw-present); }
+.stages__item[data-state="failed"] .stages__dot { border-color: var(--hw-absent); color: var(--hw-absent); }
+
+/* minmax(0, 1fr), not 1fr: a plain 1fr row grows to fit a long path, the page itself then scrolls
+   when focus moves to a button, and the rail slides off the top. Found in the real window, with a
+   long folder, on 2026-09-23; the browser preview's short paths never showed it. */
+.pane { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; }
+
+/* -- the screen ---------------------------------------------------------------------------------- */
+
+.pane__body {
+  padding: var(--hw-space-8) var(--hw-space-8) var(--hw-space-4);
+  overflow-y: auto;
+  outline: none;
+  animation: arrive var(--hw-motion-slow) ease-out;
+}
+@keyframes arrive {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.setup__title {
+  margin: 0;
+  font-family: var(--hw-font-display);
+  font-weight: 400;
+  font-size: var(--hw-text-display);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+.setup__lede {
+  margin: var(--hw-space-2) 0 0;
+  max-width: 52ch;
+  color: var(--hw-ink-muted);
+  font-size: var(--hw-text-lead);
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+/* A badge above the title for the ending, so the last thing seen says how it went in a shape as
+   well as in words (never colour alone). */
+.setup__badge {
+  display: grid;
+  place-items: center;
+  width: var(--hw-space-12);
+  height: var(--hw-space-12);
+  margin-block-end: var(--hw-space-4);
+  border-radius: var(--hw-radius-pill);
+  font-size: var(--hw-text-section);
+  font-weight: var(--hw-weight-emphasis);
+}
+.setup__badge--done { background: var(--hw-present-soft); color: var(--hw-present); }
+.setup__badge--failed { background: var(--hw-absent-soft); color: var(--hw-absent); }
+.setup__badge--paused { background: var(--hw-accent-soft); color: var(--hw-accent); }
+.setup__badge--done { animation: settle var(--hw-motion-slow) ease-out; }
+@keyframes settle {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+/* -- where things go: a card of labelled rows (Common Region) ------------------------------------- */
+
+.places {
+  margin: var(--hw-space-6) 0 0;
+  padding: 0;
+  list-style: none;
+  background: var(--hw-surface);
+  border: var(--hw-rule-width) solid var(--hw-rule);
+  border-radius: var(--hw-radius-card);
+}
+.places__row {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr;
+  gap: var(--hw-space-4);
+  padding: var(--hw-space-3) var(--hw-space-4);
+}
+.places__row + .places__row { border-top: var(--hw-rule-width) solid var(--hw-rule); }
+.places__label { color: var(--hw-ink-muted); font-weight: var(--hw-weight-label); }
+.places__path {
+  display: block;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.places__why { display: block; margin-top: 2px; color: var(--hw-ink-muted); font-size: var(--hw-text-table); }
+
+.choice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hw-space-3);
+  min-height: var(--hw-target-min);
+  margin-top: var(--hw-space-4);
+  cursor: pointer;
+}
+.choice input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--hw-accent);
+  cursor: pointer;
+}
+
+/* -- progress ---------------------------------------------------------------------------------- */
+
+.meter { margin-top: var(--hw-space-6); }
+.meter__top {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--hw-space-4);
+  margin-bottom: var(--hw-space-2);
+  font-size: var(--hw-text-body);
+}
+.meter__what { color: var(--hw-ink-muted); }
+.meter__percent { font-weight: var(--hw-weight-emphasis); }
+.meter__track {
+  height: var(--hw-space-2);
+  overflow: hidden;
+  background: var(--hw-sunken);
+  border: var(--hw-rule-width) solid var(--hw-rule);
+  border-radius: var(--hw-radius-pill);
+}
+.meter__fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--hw-accent);
+  border-radius: inherit;
+  transition: width var(--hw-motion-slow) ease-out;
+}
+
+.steps { margin: var(--hw-space-6) 0 0; padding: 0; list-style: none; display: grid; gap: var(--hw-space-3); }
+.steps__item {
+  display: flex;
+  align-items: center;
+  gap: var(--hw-space-3);
+  color: var(--hw-ink-muted);
+}
+.steps__item[data-state="active"] { color: var(--hw-ink); font-weight: var(--hw-weight-label); }
+.steps__item[data-state="done"] { color: var(--hw-ink); }
+.steps__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--hw-radius-pill);
+  border: var(--hw-rule-width-strong) solid var(--hw-rule-strong);
+  font-size: var(--hw-text-caption);
+  font-weight: var(--hw-weight-emphasis);
+}
+.steps__item[data-state="active"] .steps__icon {
+  border-color: var(--hw-accent);
+  border-right-color: transparent;
+  animation: turn 800ms linear infinite;
+}
+.steps__item[data-state="done"] .steps__icon {
+  background: var(--hw-present);
+  border-color: var(--hw-present);
+  color: var(--hw-paper);
+}
+@keyframes turn { to { transform: rotate(360deg); } }
+
+/* A reduced-motion setting stops the spinner, so the active step needs a mark of its own. */
+@media (prefers-reduced-motion: reduce) {
+  .steps__item[data-state="active"] .steps__icon { border-right-color: var(--hw-accent); }
+  .steps__item[data-state="active"] .steps__icon::after { content: "•"; color: var(--hw-accent); }
+}
+
+.notice {
+  display: flex;
+  gap: var(--hw-space-3);
+  margin-top: var(--hw-space-6);
+  padding: var(--hw-space-3) var(--hw-space-4);
+  background: var(--hw-accent-soft);
+  border-radius: var(--hw-radius-card);
+  line-height: 1.5;
+}
+.notice__icon { flex: none; font-weight: var(--hw-weight-emphasis); color: var(--hw-accent); }
+
+/* -- the bottom band ----------------------------------------------------------------------------- */
+
+.pane__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hw-space-4);
+  padding: var(--hw-space-4) var(--hw-space-8);
+  border-top: var(--hw-rule-width) solid var(--hw-rule);
+}
+.pane__note { margin: 0; color: var(--hw-ink-muted); font-size: var(--hw-text-table); }
+.pane__actions { display: flex; gap: var(--hw-space-2); margin-left: auto; }
+
+/* The app's buttons, at the larger size: a window with two or three buttons in it can afford the
+   bigger target (Fitts), and they sit where the pointer ends up. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 7rem;
+  min-height: 40px;
+  padding: 0 var(--hw-space-6);
+  background: var(--hw-surface);
+  color: var(--hw-ink);
+  border: var(--hw-rule-width) solid var(--hw-rule-strong);
+  border-radius: var(--hw-radius-control);
+  font: inherit;
+  font-size: var(--hw-text-body);
+  font-weight: var(--hw-weight-label);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--hw-motion-fast), border-color var(--hw-motion-fast);
+}
+.button:hover:not(:disabled) { background: var(--hw-sunken); }
+.button--primary { background: var(--hw-accent); color: var(--hw-on-accent); border-color: var(--hw-accent); }
+.button--primary:hover:not(:disabled) { background: var(--hw-accent-hover); border-color: var(--hw-accent-hover); }
+/* Red never means anything but absent or a destructive action, as in the app. */
+.button--destructive { color: var(--hw-absent); border-color: var(--hw-absent); }
+.button--destructive:hover:not(:disabled) { background: var(--hw-absent-soft); }
+.button--quiet { background: none; border-color: transparent; color: var(--hw-accent); }
+.button--quiet:hover:not(:disabled) { background: var(--hw-accent-soft); }
+.button:disabled { cursor: progress; opacity: 0.7; }

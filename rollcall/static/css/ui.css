@@ -1,0 +1,996 @@
+/* Herewise widgets: the pieces every screen is built from. The shell is in app.css.
+   Colour comes only from tokens.css, size and space only from base.css. */
+
+/* -- layout helpers ------------------------------------------------------------------------ */
+
+.hw-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--hw-space-3); }
+.hw-row--between { justify-content: space-between; }
+/* A row whose actions are held apart. A press meant for one must not be able to land on the other,
+   which matters most where a destructive control shares a row with a primary one: Levels had
+   Remove 12px from Import roster (measured 2026-09-22). The rule is the visible part of it, so the
+   separation is not only felt by the mouse. */
+.hw-row--parted { row-gap: var(--hw-space-6); }
+.hw-row--parted > :not(:last-child) {
+  margin-inline-end: var(--hw-space-4);
+  padding-inline-end: var(--hw-space-4);
+  border-inline-end: var(--hw-rule-width) solid var(--hw-rule);
+}
+/* The row-gap is the same separation for the case CSS cannot see: at 1024 the two buttons wrapped,
+   the inline rule went with them, and Remove ended up 12px above Import roster. */
+.hw-stack { display: grid; gap: var(--hw-space-4); }
+.hw-stack--tight { gap: var(--hw-space-2); }
+.hw-grid { display: grid; gap: var(--hw-space-4); grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.hw-muted { color: var(--hw-ink-muted); }
+
+/* Prose is capped at the measure it is read at. Whole paragraphs were running 1,000px and more,
+   about 170 characters a line, which is not read but scanned and lost (Backup, Settings and the
+   device screens, measured 2026-09-22). Set here rather than on each screen, because eleven
+   screens had already been given the same inline max-width one at a time and the rest had not.
+   A paragraph doing a layout job carries .hw-row and keeps out of it. */
+:is(.hw-page, .hw-card, .hw-panel, .hw-state, .hw-section, .hw-well)
+  :is(p, li):not(.hw-row):not(.hw-crumbs) {
+  max-width: 72ch;
+}
+.hw-nowrap { white-space: nowrap; }
+
+/* -- cards --------------------------------------------------------------------------------- */
+
+.hw-card {
+  padding: var(--hw-space-6);
+  background: var(--hw-surface);
+  border: var(--hw-rule-width) solid var(--hw-rule);
+  border-radius: var(--hw-radius-card);
+}
+.hw-card--flush { padding: 0; overflow: hidden; }
+.hw-card__title { margin: 0 0 var(--hw-space-2); font-size: var(--hw-text-lead); font-weight: var(--hw-weight-emphasis); }
+.hw-card__body { margin: 0; color: var(--hw-ink-muted); }
+.hw-card__foot { margin-block-start: var(--hw-space-3); }
+
+/* A card that is a way through to another screen. It was an article with a link in its heading,
+   styled with no underline and no colour, so six ways through to six screens read as six notices
+   and a lecturer did not know they could be pressed (found on a first run, 2026-09-21).
+   The whole card is the target now, which is Fitts's law and the reason it is not just the title;
+   the heading is underlined and carries an arrow, because colour is never the only cue. */
+.hw-card--action {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+.hw-card--action .hw-card__title { color: var(--hw-accent); text-decoration: underline; }
+.hw-card--action .hw-card__title::after { content: " →"; text-decoration: none; display: inline-block; }
+.hw-card--action:hover { border-color: var(--hw-accent); background: var(--hw-sunken); }
+.hw-card--action:hover .hw-card__title::after { transform: translateX(3px); }
+.hw-card--action:active { transform: translateY(1px); }
+@media (prefers-reduced-motion: reduce) {
+  .hw-card--action, .hw-card--action .hw-card__title::after { transition: none; }
+  .hw-card--action:active { transform: none; }
+}
+
+/* A card that has to stay reachable while the list under it is scrolled: the chosen student on
+   Enrolment, so picking somebody out of turn does not mean scrolling back up to press Enrol. */
+.hw-card--sticky {
+  position: sticky;
+  inset-block-start: var(--hw-space-2);
+  z-index: 2;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.10);
+}
+
+.hw-well {
+  padding: var(--hw-space-4);
+  background: var(--hw-sunken);
+  border-radius: var(--hw-radius-control);
+}
+
+/* -- buttons ------------------------------------------------------------------------------- */
+
+.hw-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--hw-space-2);
+  min-height: var(--hw-target-min);
+  padding: var(--hw-space-2) var(--hw-space-4);
+  background: var(--hw-surface);
+  color: var(--hw-ink);
+  border: var(--hw-rule-width) solid var(--hw-rule-strong);
+  border-radius: var(--hw-radius-control);
+  font: inherit;
+  font-size: var(--hw-text-body);
+  font-weight: var(--hw-weight-label);
+  text-decoration: none;
+  cursor: pointer;
+}
+.hw-button:hover:not(:disabled) { background: var(--hw-sunken); }
+.hw-button--primary {
+  background: var(--hw-accent);
+  color: var(--hw-on-accent);
+  border-color: var(--hw-accent);
+}
+.hw-button--primary:hover:not(:disabled) { background: var(--hw-accent-hover); border-color: var(--hw-accent-hover); }
+/* Red never means anything but absent or a destructive action (docs/DESIGN-BRIEF.md). */
+.hw-button--destructive { color: var(--hw-absent); border-color: var(--hw-absent); }
+.hw-button--destructive:hover:not(:disabled) { background: var(--hw-absent-soft); }
+.hw-button--quiet { background: none; border-color: transparent; color: var(--hw-accent); }
+.hw-button--quiet:hover:not(:disabled) { background: var(--hw-accent-soft); }
+.hw-button--large { min-height: 44px; padding-inline: var(--hw-space-6); font-size: var(--hw-text-lead); }
+.hw-button--block { width: 100%; }
+
+.hw-button:disabled { background: var(--hw-sunken); color: var(--hw-ink-muted); border-color: var(--hw-rule); cursor: not-allowed; }
+.hw-button--primary:disabled { background: var(--hw-sunken); color: var(--hw-ink-muted); border-color: var(--hw-rule); }
+/* While saving: the accent stays, so the button does not look switched off mid-action. */
+.hw-button[data-busy] { background: var(--hw-accent-hover); color: var(--hw-on-accent); border-color: var(--hw-accent-hover); cursor: progress; }
+.hw-button[data-busy]:disabled { background: var(--hw-accent-hover); color: var(--hw-on-accent); border-color: var(--hw-accent-hover); }
+
+/* A disabled control's reason is written beneath it, never inside its own label, and never hidden
+   in a tooltip alone (docs/DESIGN-DEVIATIONS.md, screen 5). */
+.hw-reason {
+  margin: var(--hw-space-1) 0 0;
+  color: var(--hw-ink-muted);
+  font-size: var(--hw-text-body);
+  max-width: 44ch;
+}
+/* The button keeps its own width and the reason wraps beneath it. Stretch made the button as wide
+   as its reason, so on Accounts one disabled "Change role" was a 470px bar in a row where the other
+   two buttons were 130px, and the owner's row was 250px tall against 55px for the others
+   (measured 2026-09-22). --end is for a control at the right edge of a page head. */
+.hw-control { display: inline-flex; flex-direction: column; align-items: flex-start; }
+/* A reason inside a table cell is a line, not a paragraph: 44ch of explanation made one Levels row
+   220px tall (measured 2026-09-22). The rule it was explaining belongs under the table, where
+   there is room for it. A length rather than ch, because this is a cap and not a measure. What
+   actually keeps such a row tidy is actionRow(), which puts the buttons on one line and gathers
+   the reasons underneath; this is the guard behind it. */
+.hw-table .hw-reason { max-width: 15rem; }
+/* Buttons on one line, their reasons gathered beneath: see actionRow in ui.js. */
+.hw-actions { display: grid; gap: var(--hw-space-2); justify-items: end; }
+.hw-actions .hw-reason { margin: 0; text-align: end; }
+.hw-control--end { align-items: flex-end; text-align: end; }
+/* A row of controls lines their tops up, so one carrying a reason does not push the others down. */
+.hw-row > .hw-control { align-self: flex-start; }
+.hw-control--end .hw-reason { text-align: end; }
+
+.hw-link { color: var(--hw-accent); font-weight: var(--hw-weight-label); }
+.hw-link:hover { color: var(--hw-accent-hover); }
+
+/* A link that is the whole of a table cell, a crumb, or a card's action is a control, not a word in
+   a sentence, and at 16px of line box it was a third of the 24px floor WCAG 2.2 SC 2.5.8 sets and
+   half the 32px this studio's own --hw-target-min sets. Measured 2026-09-22: "Open the register"
+   116x20, "Their record" 76x16, "Enrol 258" 60x16.
+   The hit area is grown with a pseudo-element rather than with padding, because padding would
+   push every table row from 40px to 48px and change the shape of every screen to fix the size of
+   a target. A link genuinely inside a sentence is left alone: SC 2.5.8 exempts it, and growing it
+   would have it overlapping the words either side. A matric number in a table is the exception
+   that proves the rule: the student's name sits beside it in the same cell, but the number is the
+   only way into the record, so it is a control and not a word. */
+:is(.hw-table :is(td, th) > .hw-link,
+    .hw-crumbs > .hw-link,
+    .hw-row > .hw-link,
+    .hw-stack > .hw-link,
+    .hw-card > .hw-link,
+    .hw-cardfoot .hw-link,
+    .hw-banner a,
+    p > .hw-link:only-child,
+    li > .hw-link:only-child,
+    .hw-table :is(td, th) .hw-ids.hw-link) {
+  position: relative;
+}
+:is(.hw-table :is(td, th) > .hw-link,
+    .hw-crumbs > .hw-link,
+    .hw-row > .hw-link,
+    .hw-stack > .hw-link,
+    .hw-card > .hw-link,
+    .hw-cardfoot .hw-link,
+    .hw-banner a,
+    p > .hw-link:only-child,
+    li > .hw-link:only-child,
+    .hw-table :is(td, th) .hw-ids.hw-link)::after {
+  content: "";
+  position: absolute;
+  inset-block: -8px;
+  inset-inline: -6px;
+}
+/* A zero is not a link (screen 5 deviation): the caller drops the target and this dulls it. */
+.hw-link[data-empty] { color: var(--hw-ink-muted); font-weight: var(--hw-weight-body); text-decoration: none; cursor: default; }
+
+/* -- fields -------------------------------------------------------------------------------- */
+
+.hw-field { display: grid; gap: var(--hw-space-2); }
+.hw-field__label { font-weight: var(--hw-weight-label); }
+.hw-field__help { color: var(--hw-ink-muted); font-size: var(--hw-text-body); }
+
+/* A field's width is a promise about the answer, so it is capped to what goes in it. The default
+   cap is the measure a sentence can be read at; the label and the help text are not capped with
+   it, because they wrap and a two-word label in a 10rem box reads worse than one on its own line.
+   Settings had sixteen number boxes 1,100px wide holding two digits (measured 2026-09-22). */
+.hw-field :is(.hw-input, .hw-select, .hw-textarea, .hw-readonly) { max-width: 34rem; }
+.hw-field[data-width="short"] :is(.hw-input, .hw-select, .hw-readonly) { max-width: 9rem; }
+.hw-field[data-width="medium"] :is(.hw-input, .hw-select, .hw-readonly) { max-width: 20rem; }
+.hw-field[data-width="full"] :is(.hw-input, .hw-select, .hw-textarea, .hw-readonly) { max-width: none; }
+
+/* The desktop settings row: what it is on the left, what it is set to on the right. Explicit grid
+   placement, because the control comes before its help text in the DOM so the two are read in the
+   right order. */
+@media (min-width: 900px) {
+  .hw-field[data-layout="row"] {
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--hw-space-6);
+    align-items: start;
+  }
+  .hw-field[data-layout="row"] > .hw-field__label,
+  .hw-field[data-layout="row"] > .hw-row { grid-area: 1 / 1; align-self: center; }
+  .hw-field[data-layout="row"] > .hw-field__help { grid-area: 2 / 1; margin: 0; }
+  .hw-field[data-layout="row"] > :is(.hw-input, .hw-select, .hw-textarea, .hw-readonly) {
+    grid-area: 1 / 2 / span 2 / auto;
+    align-self: center;
+    /* So a column of them lines up on its left edge whatever each one holds. */
+    inline-size: 16rem;
+    max-width: none;
+  }
+  .hw-field[data-layout="row"][data-width="short"] > :is(.hw-input, .hw-select) { inline-size: 9rem; }
+  .hw-field[data-layout="row"][data-width="medium"] > :is(.hw-input, .hw-select) { inline-size: 20rem; }
+  .hw-field[data-layout="row"] > .hw-field__error { grid-area: 3 / 1 / auto / -1; }
+}
+
+/* Rows in a card are separated by a rule, not by air: it says where one setting ends without
+   adding 24px to every one of them. */
+.hw-rows { display: grid; }
+.hw-rows > .hw-field { padding-block: var(--hw-space-4); }
+.hw-rows > .hw-field:first-child { padding-block-start: 0; }
+.hw-rows > .hw-field:last-child { padding-block-end: 0; }
+.hw-rows > .hw-field + .hw-field { border-block-start: var(--hw-rule-width) solid var(--hw-rule); }
+
+.hw-input, .hw-select, .hw-textarea {
+  /* A fixed height whatever it holds: an empty field shrank to 25 px in the mockups (screen 2). */
+  min-height: 44px;
+  width: 100%;
+  padding: var(--hw-space-2) var(--hw-space-3);
+  background: var(--hw-surface);
+  color: var(--hw-ink);
+  border: var(--hw-rule-width) solid var(--hw-rule-strong);
+  border-radius: var(--hw-radius-control);
+  font: inherit;
+  font-size: var(--hw-text-body);
+}
+.hw-textarea { min-height: 88px; resize: vertical; padding-block: var(--hw-space-3); }
+/* A dropdown has to look like one. `appearance: none` took the platform arrow away and nothing
+   replaced it, so "Yes, after every pull" and "15" were the same shape on Settings and only one of
+   them could be opened. Drawn with two gradients rather than an icon: currentColor follows the
+   theme, and nothing is fetched at runtime. */
+.hw-select {
+  appearance: none;
+  padding-inline-end: var(--hw-space-8);
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 1.25rem) calc(50% + 1px), calc(100% - 0.85rem) calc(50% + 1px);
+  background-size: 7px 7px;
+  background-repeat: no-repeat;
+}
+.hw-select:disabled { background-image: none; }
+.hw-input:disabled, .hw-select:disabled, .hw-textarea:disabled { background: var(--hw-sunken); color: var(--hw-ink-muted); }
+
+/* A value that is read, not typed: no input border, so it cannot be mistaken for a field. */
+.hw-readonly {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: var(--hw-space-2) var(--hw-space-3);
+  background: var(--hw-sunken);
+  border: var(--hw-rule-width) solid transparent;
+  border-radius: var(--hw-radius-control);
+  color: var(--hw-ink);
+}
+
+/* Shown on blur, never while someone is still typing, and cleared as soon as they start fixing it. */
+.hw-field[data-invalid] .hw-input,
+.hw-field[data-invalid] .hw-select,
+.hw-field[data-invalid] .hw-textarea { border-color: var(--hw-absent); }
+.hw-field__error {
+  display: flex;
+  gap: var(--hw-space-2);
+  align-items: baseline;
+  color: var(--hw-absent);
+  font-size: var(--hw-text-body);
+}
+
+.hw-fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: var(--hw-space-3); }
+.hw-fieldset > legend { padding: 0; font-weight: var(--hw-weight-label); }
+
+.hw-choice {
+  display: flex;
+  gap: var(--hw-space-3);
+  align-items: flex-start;
+  padding: var(--hw-space-3);
+  border: var(--hw-rule-width) solid var(--hw-rule-strong);
+  border-radius: var(--hw-radius-control);
+  cursor: pointer;
+}
+.hw-choice:has(input:checked) { border-color: var(--hw-accent); background: var(--hw-accent-soft); }
+.hw-choice input { margin: 2px 0 0; width: 18px; height: 18px; flex: none; accent-color: var(--hw-accent); }
+.hw-choice__label { font-weight: var(--hw-weight-label); }
+/* Let a long description wrap rather than truncate (screen 8 deviation). */
+.hw-choice__help { color: var(--hw-ink-muted); font-size: var(--hw-text-body); }
+
+/* -- panels: the one-line answer above a form ---------------------------------------------- */
+
+.hw-panel {
+  display: flex;
+  gap: var(--hw-space-3);
+  align-items: flex-start;
+  padding: var(--hw-space-4);
+  border-radius: var(--hw-radius-control);
+}
+.hw-panel__glyph { font-weight: var(--hw-weight-emphasis); line-height: 1.45; }
+.hw-panel__title { margin: 0 0 var(--hw-space-1); font-size: var(--hw-text-body); font-weight: var(--hw-weight-emphasis); }
+.hw-panel__body { margin: 0; }
+.hw-panel[data-tone="failure"] { background: var(--hw-absent-soft); color: var(--hw-absent); }
+.hw-panel[data-tone="success"] { background: var(--hw-present-soft); color: var(--hw-present); }
+.hw-panel[data-tone="info"] { background: var(--hw-accent-soft); color: var(--hw-ink); }
+/* The information mark is a circled i, drawn rather than typed: the character is not in Inter and a
+   bare letter reads as part of the sentence. */
+.hw-panel[data-tone="info"] .hw-panel__glyph,
+.hw-panel[data-tone="quiet"] .hw-panel__glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: var(--hw-rule-width) solid currentColor;
+  border-radius: var(--hw-radius-pill);
+  font-size: var(--hw-text-caption);
+  font-style: italic;
+  line-height: 1;
+  align-self: flex-start;
+  margin-block-start: 2px;
+}
+.hw-panel[data-tone="info"] .hw-panel__glyph { color: var(--hw-accent); }
+.hw-panel[data-tone="quiet"] { background: var(--hw-sunken); color: var(--hw-ink); }
+.hw-panel[data-tone="review"] { background: var(--hw-review-soft); color: var(--hw-review); }
+.hw-panel a { color: inherit; font-weight: var(--hw-weight-emphasis); }
+
+/* -- status pills -------------------------------------------------------------------------- */
+/* Glyph, word and colour together, always (docs/DESIGN-BRIEF.md). */
+
+.hw-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hw-space-2);
+  padding: var(--hw-space-1) var(--hw-space-3);
+  border-radius: var(--hw-radius-pill);
+  font-size: var(--hw-text-body);
+  font-weight: var(--hw-weight-label);
+  white-space: nowrap;
+}
+.hw-pill__glyph { font-weight: var(--hw-weight-emphasis); }
+.hw-pill[data-tone="present"] { background: var(--hw-present-soft); color: var(--hw-present); }
+.hw-pill[data-tone="absent"] { background: var(--hw-absent-soft); color: var(--hw-absent); }
+.hw-pill[data-tone="excused"] { background: var(--hw-excused-soft); color: var(--hw-excused); }
+.hw-pill[data-tone="review"] { background: var(--hw-review-soft); color: var(--hw-review); }
+.hw-pill[data-tone="neutral"] { background: var(--hw-sunken); color: var(--hw-ink-muted); }
+.hw-pill[data-tone="accent"] { background: var(--hw-accent-soft); color: var(--hw-accent); }
+
+/* -- tables -------------------------------------------------------------------------------- */
+/* Read-only means table; interactive cells mean grid (docs/COMPONENT-GUIDE.md). */
+
+.hw-table-frame {
+  background: var(--hw-surface);
+  border: var(--hw-rule-width) solid var(--hw-rule);
+  border-radius: var(--hw-radius-card);
+  /* Two things pull in opposite directions here, and which one wins is decided per table.
+     Vertically, a long table's header must pin to the top of the window, because 258 rows of a
+     register were being read with the column names scrolled off the top (Checklist Design, Table:
+     fix the header on scroll). That only works while no ancestor is a scroll container, so the
+     default is `clip`, which rounds the corners without becoming one.
+     Horizontally, a table wider than its frame has to be reachable. `clip` hid the last three
+     columns of Excused absences at 1024, Withdraw among them, with nothing to scroll and no sign
+     anything was missing (measured 2026-09-22: 201px of table past the frame).
+     `overflow-x: auto` with `overflow-y: clip` looks like the answer and is not: CSS Overflow 3
+     computes `clip` to `hidden` when the other axis scrolls, so the frame becomes a vertical
+     scroll container and the header pins to a box that never moves. Measured: header 56px above
+     the window top after scrolling 600px, which is no stickiness at all.
+     So ui.js measures each table and sets data-overflowing only on the ones that need the sideways
+     scroll. Those become their own scroll region, bounded in height so their header has the frame
+     to pin to. Every other table keeps the page as its scroller. */
+  overflow: clip;
+}
+.hw-table-frame[data-overflowing="true"] {
+  overflow: auto;
+  /* Bounded, so the sticky header has a scrollport of its own. Without this the frame is taller
+     than the window, the header pins to a top that is already scrolled past, and a wide table
+     loses the very thing the narrow ones keep. */
+  max-block-size: min(80vh, 40rem);
+  scrollbar-gutter: stable;
+  /* Shading on the edge it can scroll towards, so "there is more to the right" is visible rather
+     than only discoverable by trying. Mixed from --hw-ink rather than added to the palette: it is
+     a shadow, so it follows the theme's ink, and design/palette.py owns every named colour. */
+  background-image: linear-gradient(to left, color-mix(in srgb, var(--hw-ink) 14%, transparent),
+                                    transparent 2.5rem);
+  background-repeat: no-repeat;
+  /* scroll, not local: the shading stays on the frame's edge instead of riding away with the
+     content it is there to hint at. */
+  background-attachment: scroll;
+}
+.hw-table-frame:focus-visible { outline: var(--hw-focus-width) solid var(--hw-focus); outline-offset: 2px; }
+.hw-table { width: 100%; border-collapse: collapse; font-size: var(--hw-text-table); }
+.hw-table th, .hw-table td {
+  height: var(--hw-row-comfortable);
+  padding: var(--hw-space-2) var(--hw-space-4);
+  text-align: start;
+  border-block-end: var(--hw-rule-width) solid var(--hw-rule);
+}
+.hw-table thead th {
+  /* The page is what scrolls, and the top bar scrolls away with it, so the header pins to the top
+     of the window. */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--hw-sunken);
+  color: var(--hw-ink-muted);
+  font-size: var(--hw-text-caption);
+  font-weight: var(--hw-weight-label);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+/* :is(td, th), not td: the first cell of a row is a th, so the last row kept a rule under its
+   first column only. Visible on Academic sessions as a line under 2026/2027 and nothing else. */
+.hw-table tbody tr:last-child :is(td, th) { border-block-end: 0; }
+/* A long table is filtered by hiding its rows, not by building it again (screen 7): the browser's
+   own [hidden] rule is weaker than any author display rule, so it is spelled out here. data-last
+   carries the flat bottom edge, which :last-child would give to a row nobody can see. */
+.hw-table tbody tr[hidden] { display: none; }
+.hw-table tbody tr[data-last] :is(td, th) { border-block-end: 0; }
+.hw-table [data-align="end"] { text-align: end; }
+.hw-table[data-density="compact"] th, .hw-table[data-density="compact"] td { height: var(--hw-row-compact); }
+.hw-table tbody tr[data-href] { cursor: pointer; }
+.hw-table tbody tr[data-href]:hover { background: var(--hw-sunken); }
+.hw-table tbody tr[data-dimmed] td { color: var(--hw-ink-muted); }
+.hw-table tbody tr[data-struck] .hw-table__struck { text-decoration: line-through; }
+.hw-table__code { font-weight: var(--hw-weight-emphasis); }
+/* The foot of a capped table: how many are showing, and the press that shows the rest. */
+.hw-table__more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hw-space-3);
+  padding: var(--hw-space-3) var(--hw-space-4);
+  border-block-start: var(--hw-rule-width) solid var(--hw-rule);
+  background: var(--hw-sunken);
+}
+
+/* -- empty, loading and error -------------------------------------------------------------- */
+/* Icon, heading, description and an action, per web-app-empty-state: never one sentence in a box. */
+
+.hw-state {
+  display: grid;
+  justify-items: start;
+  gap: var(--hw-space-3);
+  padding: var(--hw-space-12) var(--hw-space-8);
+}
+.hw-state__icon { font-size: var(--hw-text-title); line-height: 1; color: var(--hw-ink-muted); }
+.hw-state[data-tone="failure"] .hw-state__icon { color: var(--hw-absent); }
+.hw-state__heading { margin: 0; font-size: var(--hw-text-section); font-weight: var(--hw-weight-emphasis); }
+.hw-state__body { margin: 0; max-width: 60ch; color: var(--hw-ink-muted); }
+
+.hw-skeleton {
+  height: 12px;
+  width: 60%;
+  border-radius: var(--hw-radius-control);
+  background: var(--hw-sunken);
+}
+.hw-skeleton--wide { width: 85%; }
+
+/* -- how far along something is -------------------------------------------------------------- */
+/* Only where the total is known does the bar fill; work with no total gets a barber's pole, which
+   says "still going" and does not pretend to know how much is left. */
+
+.hw-progress {
+  display: grid;
+  gap: var(--hw-space-2);
+  padding: var(--hw-space-4);
+  background: var(--hw-sunken);
+  border-radius: var(--hw-radius-control);
+}
+.hw-progress__line { display: flex; align-items: baseline; justify-content: space-between; gap: var(--hw-space-3); }
+.hw-progress__what { font-weight: var(--hw-weight-label); }
+.hw-progress__count { color: var(--hw-ink-muted); }
+.hw-progress__track {
+  block-size: 8px;
+  background: var(--hw-rule);
+  border-radius: var(--hw-radius-pill);
+  overflow: hidden;
+}
+.hw-progress__fill {
+  block-size: 100%;
+  inline-size: 0;
+  background: var(--hw-accent);
+  border-radius: inherit;
+  transition: inline-size var(--hw-motion-slow) ease;
+}
+.hw-progress__track[data-unknown] .hw-progress__fill {
+  inline-size: 35%;
+  animation: hw-barber 1.4s linear infinite;
+}
+@keyframes hw-barber {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hw-progress__fill { transition: none; animation: none; }
+  .hw-progress__track[data-unknown] .hw-progress__fill { inline-size: 100%; opacity: 0.4; }
+}
+.hw-progress__detail { margin: 0; color: var(--hw-ink-muted); font-size: var(--hw-text-body); }
+.hw-progress--done { background: var(--hw-present-soft); }
+
+/* -- the saved confirmation ---------------------------------------------------------------- */
+/* A save confirms itself in words: silence is not confirmation (docs/COMPONENT-GUIDE.md). */
+
+.hw-confirmation {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hw-space-2);
+  color: var(--hw-present);
+  font-weight: var(--hw-weight-label);
+}
+.hw-confirmation__glyph { font-weight: var(--hw-weight-emphasis); }
+
+/* -- the diagnostic chain ------------------------------------------------------------------ */
+/* Cable, address, route, ping, port, identity as linked steps. The first broken link is the only
+   one that speaks; the rest say they were not reached. */
+
+.hw-chain { display: grid; gap: var(--hw-space-3); margin: 0; padding: 0; list-style: none; }
+.hw-chain__step { display: flex; gap: var(--hw-space-3); align-items: baseline; }
+.hw-chain__glyph { width: 1.2em; flex: none; font-weight: var(--hw-weight-emphasis); text-align: center; }
+.hw-chain__step[data-state="pass"] .hw-chain__glyph { color: var(--hw-present); }
+.hw-chain__step[data-state="fail"] .hw-chain__glyph { color: var(--hw-absent); }
+.hw-chain__step[data-state="skipped"] .hw-chain__glyph { color: var(--hw-rule-strong); }
+.hw-chain__label { font-weight: var(--hw-weight-label); }
+.hw-chain__message { display: block; margin-block-start: 2px; color: var(--hw-ink-muted); font-weight: var(--hw-weight-body); }
+.hw-chain__step[data-state="fail"] .hw-chain__message { color: inherit; }
+
+/* -- the stepper --------------------------------------------------------------------------- */
+/* Joining rules, not dividers, so progress reads left to right (screen 1 deviation). */
+
+.hw-stepper { display: flex; align-items: center; margin: 0 0 var(--hw-space-2); padding: 0; list-style: none; }
+.hw-stepper__step { display: flex; align-items: center; gap: var(--hw-space-2); color: var(--hw-ink-muted); }
+.hw-stepper__step + .hw-stepper__step::before {
+  content: "";
+  width: var(--hw-space-8);
+  height: var(--hw-rule-width);
+  margin-inline: var(--hw-space-3);
+  background: var(--hw-rule);
+}
+.hw-stepper__glyph { font-weight: var(--hw-weight-emphasis); }
+.hw-stepper__step[data-state="done"] { color: var(--hw-ink); }
+.hw-stepper__step[data-state="done"] .hw-stepper__glyph { color: var(--hw-present); }
+.hw-stepper__step[data-state="current"] { color: var(--hw-accent); font-weight: var(--hw-weight-emphasis); }
+.hw-stepper__step[data-state="current"] .hw-stepper__glyph { color: var(--hw-accent); }
+.hw-stepper__count { margin: 0 0 var(--hw-space-6); color: var(--hw-ink-muted); font-size: var(--hw-text-body); }
+
+/* -- the card footer that carries the step's actions --------------------------------------- */
+
+.hw-cardfoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--hw-space-4);
+  margin: var(--hw-space-6) calc(var(--hw-space-6) * -1) calc(var(--hw-space-6) * -1);
+  padding: var(--hw-space-4) var(--hw-space-6);
+  border-block-start: var(--hw-rule-width) solid var(--hw-rule);
+}
+.hw-cardfoot__end { margin-inline-start: auto; }
+.hw-cardfoot__note { flex-basis: 100%; margin: 0; color: var(--hw-ink-muted); text-align: center; font-size: var(--hw-text-body); }
+
+/* -- dialogs ------------------------------------------------------------------------------- */
+
+.hw-dialog {
+  width: min(100% - var(--hw-space-8), 520px);
+  padding: 0;
+  background: var(--hw-surface);
+  color: var(--hw-ink);
+  border: var(--hw-rule-width) solid var(--hw-rule);
+  border-radius: var(--hw-radius-card);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+}
+/* The scrim darkens the page, it does not grey it (screen 8 deviation). */
+.hw-dialog::backdrop { background: rgb(34 29 23 / 0.32); }
+.hw-dialog__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--hw-space-4);
+  padding: var(--hw-space-6) var(--hw-space-6) 0;
+}
+.hw-dialog__title { margin: 0; font-size: var(--hw-text-section); font-weight: var(--hw-weight-emphasis); }
+.hw-dialog__close {
+  margin-inline-start: auto;
+  width: var(--hw-target-min);
+  height: var(--hw-target-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: var(--hw-rule-width) solid transparent;
+  border-radius: var(--hw-radius-control);
+  color: var(--hw-ink-muted);
+  font: inherit;
+  font-size: var(--hw-text-lead);
+  cursor: pointer;
+}
+.hw-dialog__close:hover { border-color: var(--hw-rule); color: var(--hw-ink); }
+.hw-dialog__body { padding: var(--hw-space-4) var(--hw-space-6) var(--hw-space-6); }
+.hw-dialog__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--hw-space-3);
+  padding: var(--hw-space-4) var(--hw-space-6);
+  border-block-start: var(--hw-rule-width) solid var(--hw-rule);
+}
+.hw-dialog__foot .hw-cardfoot__end { margin-inline-start: auto; }
+/* The cancel link and its line go on their own row beneath the buttons (screen 3 deviation). */
+.hw-dialog__aside { flex-basis: 100%; margin: 0; }
+
+/* -- toast: an action that finished away from where the eye is ----------------------------- */
+
+.hw-toasts {
+  position: fixed;
+  inset-block-end: var(--hw-space-6);
+  inset-inline-end: var(--hw-space-6);
+  display: grid;
+  gap: var(--hw-space-2);
+  z-index: 40;
+}
+.hw-toast {
+  display: flex;
+  align-items: baseline;
+  gap: var(--hw-space-3);
+  max-width: 420px;
+  padding: var(--hw-space-3) var(--hw-space-4);
+  background: var(--hw-surface);
+  border: var(--hw-rule-width) solid var(--hw-rule-strong);
+  border-radius: var(--hw-radius-control);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.12);
+}
+.hw-toast[data-tone="success"] .hw-toast__glyph { color: var(--hw-present); }
+.hw-toast[data-tone="failure"] .hw-toast__glyph { color: var(--hw-absent); }
+.hw-toast__glyph { font-weight: var(--hw-weight-emphasis); }
+
+/* -- tabs ---------------------------------------------------------------------------------- */
+
+.hw-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--hw-space-1);
+  margin-block-end: var(--hw-space-6);
+  border-block-end: var(--hw-rule-width) solid var(--hw-rule);
+}
+.hw-tab {
+  min-height: var(--hw-target-min);
+  padding: var(--hw-space-2) var(--hw-space-4);
+  margin-block-end: calc(var(--hw-rule-width-strong) * -1);
+  background: none;
+  border: 0;
+  border-block-end: var(--hw-rule-width-strong) solid transparent;
+  color: var(--hw-ink-muted);
+  font: inherit;
+  font-size: var(--hw-text-body);
+  font-weight: var(--hw-weight-label);
+  text-decoration: none;
+  cursor: pointer;
+}
+.hw-tab:hover { color: var(--hw-ink); }
+/* Visible, and clearly not available: the reason is written on the line beneath the rule. */
+.hw-tab[aria-disabled="true"] { color: var(--hw-ink-muted); cursor: not-allowed; }
+.hw-tab[aria-selected="true"], .hw-tab[aria-current="page"] {
+  color: var(--hw-ink);
+  border-block-end-color: var(--hw-accent);
+  font-weight: var(--hw-weight-emphasis);
+}
+
+/* -- key and value lists ------------------------------------------------------------------- */
+
+/* Plain bullets for a list of facts: never ticks, which would read as a status (screen 39). */
+.hw-bullets { margin: 0; padding-inline-start: var(--hw-space-6); display: grid; gap: var(--hw-space-2); }
+.hw-bullets li::marker { color: var(--hw-ink-muted); }
+
+.hw-facts { display: grid; grid-template-columns: auto 1fr; gap: var(--hw-space-2) var(--hw-space-4); margin: 0; }
+.hw-facts dt { color: var(--hw-ink-muted); }
+.hw-facts dd { margin: 0; }
+
+/* Addresses, ports, serials, IDs and matric numbers get the slashed zero. A count of people does
+   not (screen 1 deviation). */
+.hw-ids { font-variant-numeric: tabular-nums slashed-zero; font-feature-settings: "tnum" 1, "zero" 1, "calt" 0; }
+
+/* -- the view toggle ------------------------------------------------------------------------ */
+
+/* justify-self, because inline-flex says nothing to a grid: as an item of a .hw-stack the toggle
+   stretched to the card, and "One course" became a 900px bar next to a 120px one (Send to the
+   device, measured 2026-09-22). */
+.hw-toggle {
+  display: inline-flex;
+  justify-self: start;
+  border: var(--hw-rule-width) solid var(--hw-rule-strong);
+  border-radius: var(--hw-radius-control);
+  overflow: hidden;
+}
+.hw-toggle__button {
+  min-height: var(--hw-target-min);
+  padding: var(--hw-space-2) var(--hw-space-4);
+  background: var(--hw-surface);
+  color: var(--hw-ink);
+  border: 0;
+  font: inherit;
+  font-size: var(--hw-text-body);
+  font-weight: var(--hw-weight-label);
+  cursor: pointer;
+}
+.hw-toggle__button + .hw-toggle__button { border-inline-start: var(--hw-rule-width) solid var(--hw-rule-strong); }
+.hw-toggle__button[aria-pressed="true"] { background: var(--hw-accent); color: var(--hw-on-accent); }
+
+/* -- course cards -------------------------------------------------------------------------- */
+/* A plain grid, two columns above 1200px and one below. The mockup's cards stacked in the left
+   column and their footers escaped into the right, leaving half the screen dead. */
+
+.hw-cards { display: grid; gap: var(--hw-space-4); grid-template-columns: 1fr; }
+@media (min-width: 1200px) { .hw-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* A card title that is a link reads as one, in ink accent and underlined, because colour is never
+   the only cue and an underline that appears on hover cannot be seen before hovering. */
+.hw-card__link { color: var(--hw-accent); text-decoration: underline; }
+
+.hw-figures { display: flex; flex-wrap: wrap; gap: var(--hw-space-6); }
+.hw-figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--hw-space-2);
+  font-size: var(--hw-text-title);
+  font-weight: var(--hw-weight-body);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.hw-figure__glyph { font-size: var(--hw-text-lead); font-weight: var(--hw-weight-emphasis); }
+.hw-figure__glyph[data-tone="present"] { color: var(--hw-present); }
+.hw-figure__glyph[data-tone="absent"] { color: var(--hw-absent); }
+
+/* One square per planned class, filled for the ones held. */
+.hw-strip { display: flex; flex-wrap: wrap; gap: 3px; margin: 0; }
+.hw-strip__box { width: 12px; height: 12px; border-radius: 2px; border: var(--hw-rule-width) solid var(--hw-rule); }
+.hw-strip__box[data-state="held"] { background: var(--hw-accent); border-color: var(--hw-accent); }
+.hw-strip__box[data-state="todo"] { background: var(--hw-sunken); }
+
+/* -- the count filters above a register ----------------------------------------------------- */
+
+.hw-counts { display: flex; flex-wrap: wrap; gap: var(--hw-space-6); }
+.hw-counts__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--hw-space-2);
+  padding: var(--hw-space-2) 0 var(--hw-space-3);
+  background: none;
+  border: 0;
+  border-block-end: var(--hw-rule-width-strong) solid transparent;
+  color: var(--hw-ink);
+  font: inherit;
+  cursor: pointer;
+}
+.hw-counts__item[aria-pressed="true"] { border-block-end-color: var(--hw-accent); }
+.hw-counts__value { font-size: var(--hw-text-title); font-weight: var(--hw-weight-emphasis); line-height: 1; }
+.hw-counts__label { color: var(--hw-ink-muted); }
+.hw-counts__glyph { font-weight: var(--hw-weight-emphasis); }
+.hw-counts__item[data-tone="present"] .hw-counts__glyph { color: var(--hw-present); }
+.hw-counts__item[data-tone="absent"] .hw-counts__glyph { color: var(--hw-absent); }
+.hw-counts__item[data-tone="excused"] .hw-counts__glyph { color: var(--hw-excused); }
+
+.hw-crumbs { margin: 0 0 var(--hw-space-4); color: var(--hw-ink-muted); }
+.hw-tag {
+  display: inline-block;
+  margin-inline-start: var(--hw-space-2);
+  padding: 1px var(--hw-space-2);
+  border: var(--hw-rule-width) solid var(--hw-rule-strong);
+  border-radius: var(--hw-radius-pill);
+  color: var(--hw-ink-muted);
+  font-size: var(--hw-text-caption);
+}
+[data-dimmed="true"] { opacity: 1; }
+[data-dimmed="true"] .hw-page__title, [data-dimmed="true"] h3 { color: var(--hw-ink-muted); }
+
+/* -- the scan timeline ---------------------------------------------------------------------- */
+/* Each band is laid out from its own timestamps: nothing on this screen is hand-placed. */
+
+.hw-timeline { display: grid; gap: var(--hw-space-3); }
+.hw-timeline__band {
+  padding: var(--hw-space-4);
+  background: var(--hw-accent-soft);
+  border-radius: var(--hw-radius-card);
+}
+.hw-timeline__title { margin: 0 0 var(--hw-space-3); }
+.hw-timeline__bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 56px;
+  padding: var(--hw-space-1);
+  background: var(--hw-surface);
+  border-radius: var(--hw-radius-control);
+}
+.hw-timeline__bar { flex: 1; min-width: 3px; background: var(--hw-accent); border-radius: 2px 2px 0 0; }
+.hw-timeline__note { margin: var(--hw-space-2) 0 0; color: var(--hw-ink-muted); font-size: var(--hw-text-body); }
+.hw-gap { margin: 0; padding-inline-start: var(--hw-space-4); color: var(--hw-ink-muted); font-size: var(--hw-text-body); }
+
+/* -- the course chooser --------------------------------------------------------------------- */
+
+.hw-chooser { display: grid; gap: var(--hw-space-2); }
+.hw-chooser__row { align-items: center; }
+.hw-chooser__name { flex: 1; }
+.hw-chooser__evidence { white-space: nowrap; font-weight: var(--hw-weight-label); }
+
+/* -- the change line on a correction request ------------------------------------------------- */
+
+.hw-change {
+  display: flex;
+  align-items: center;
+  gap: var(--hw-space-3);
+  padding: var(--hw-space-3) var(--hw-space-4);
+  background: var(--hw-sunken);
+  border-radius: var(--hw-radius-control);
+}
+.hw-change__arrow { color: var(--hw-ink-muted); font-size: var(--hw-text-lead); }
+
+/* -- the consequence of creating a class ----------------------------------------------------- */
+
+.hw-consequence { display: grid; gap: var(--hw-space-2); }
+.hw-consequence__line { display: flex; align-items: baseline; gap: var(--hw-space-2); margin: 0; font-size: var(--hw-text-lead); }
+.hw-consequence__glyph { font-weight: var(--hw-weight-emphasis); }
+.hw-consequence__glyph[data-tone="present"] { color: var(--hw-present); }
+.hw-consequence__glyph[data-tone="absent"] { color: var(--hw-absent); }
+
+/* -- capacity gauges ------------------------------------------------------------------------ */
+/* Hatched and empty when nothing was read: a gauge holding its last fill with the cable out is a
+   quiet lie (docs/DESIGN-DEVIATIONS.md, screen 27). */
+
+.hw-gauge {
+  height: 12px;
+  background: var(--hw-sunken);
+  border-radius: var(--hw-radius-pill);
+  overflow: hidden;
+}
+.hw-gauge__fill { display: block; height: 100%; background: var(--hw-accent); }
+.hw-gauge[data-unknown] {
+  background-image: repeating-linear-gradient(45deg, var(--hw-rule) 0 4px, transparent 4px 8px);
+}
+
+/* -- the two Super Admin seats -------------------------------------------------------------- */
+/* Side by side on screens 29 and 31 alike: one component, one layout. */
+
+.hw-seats { display: grid; gap: var(--hw-space-4); grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.hw-seat {
+  display: grid;
+  gap: var(--hw-space-2);
+  align-content: start;
+  padding: var(--hw-space-6);
+  border-radius: var(--hw-radius-card);
+}
+.hw-seat[data-state="filled"] { background: var(--hw-present-soft); border: var(--hw-rule-width) solid var(--hw-present); }
+.hw-seat[data-state="empty"] { background: var(--hw-surface); border: var(--hw-rule-width-strong) dashed var(--hw-rule-strong); }
+.hw-seat__mark { margin: 0; font-size: var(--hw-text-title); font-weight: var(--hw-weight-emphasis); line-height: 1; }
+.hw-seat[data-state="filled"] .hw-seat__mark { color: var(--hw-present); }
+.hw-seat[data-state="empty"] .hw-seat__mark { color: var(--hw-rule-strong); }
+.hw-seat__name { margin: 0; font-size: var(--hw-text-lead); font-weight: var(--hw-weight-emphasis); }
+
+/* -- the two finger slots, read from two metres --------------------------------------------- */
+/* The captured slot gets a large tick and the waiting slot a distinct outline, so the pair never
+   relies on green against blue (docs/DESIGN-DEVIATIONS.md, screen 24). */
+
+.hw-slots { display: grid; gap: var(--hw-space-4); grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.hw-slot {
+  display: grid;
+  gap: var(--hw-space-2);
+  justify-items: center;
+  text-align: center;
+  padding: var(--hw-space-6);
+  border-radius: var(--hw-radius-card);
+  border: var(--hw-rule-width-strong) solid var(--hw-rule);
+}
+.hw-slot[data-state="done"] { background: var(--hw-present-soft); border-color: var(--hw-present); }
+.hw-slot[data-state="waiting"] { background: var(--hw-accent-soft); border-style: dashed; border-color: var(--hw-accent); }
+.hw-slot[data-state="todo"] { background: var(--hw-surface); border-style: dashed; border-color: var(--hw-rule-strong); }
+.hw-slot__mark { margin: 0; font-size: var(--hw-text-display); line-height: 1; font-weight: var(--hw-weight-emphasis); }
+.hw-slot[data-state="done"] .hw-slot__mark { color: var(--hw-present); }
+.hw-slot[data-state="waiting"] .hw-slot__mark { color: var(--hw-accent); }
+.hw-slot[data-state="todo"] .hw-slot__mark { color: var(--hw-rule-strong); }
+.hw-slot__name { margin: 0; font-size: var(--hw-text-section); font-weight: var(--hw-weight-emphasis); }
+.hw-slot__note { margin: 0; color: var(--hw-ink-muted); }
+.hw-slot__who {
+  margin: 0 0 var(--hw-space-1);
+  font-family: var(--hw-font-display);
+  font-weight: 400;
+  font-size: var(--hw-text-display);
+  line-height: 1.05;
+}
+
+.hw-queue { margin: 0; padding-inline-start: var(--hw-space-6); display: grid; gap: var(--hw-space-2); }
+.hw-legend { margin-block-start: var(--hw-space-6); color: var(--hw-ink-muted); }
+.hw-legend kbd {
+  padding: 1px var(--hw-space-2);
+  border: var(--hw-rule-width) solid var(--hw-rule-strong);
+  border-radius: 4px;
+  font: inherit;
+  font-size: var(--hw-text-body);
+}
+
+/* -- the week strip -------------------------------------------------------------------------- */
+
+/* Capped, because a week strip is a list of short facts and not a thing to spread across a
+   1,920px window: the label box reached 1,099px for a four-character week name. */
+.hw-weeks { display: grid; gap: var(--hw-space-2); max-width: 56rem; }
+.hw-weeks__row {
+  display: grid;
+  /* The flexible column is the last one, so the label box stays the size of a week label and the
+     free space falls after the row rather than inside it. */
+  grid-template-columns: 6rem 12rem minmax(8rem, 14rem) auto minmax(0, 1fr) auto;
+  gap: var(--hw-space-3);
+  align-items: center;
+  padding: var(--hw-space-2) var(--hw-space-3);
+  background: var(--hw-surface);
+  border: var(--hw-rule-width) solid var(--hw-rule);
+  border-radius: var(--hw-radius-control);
+}
+/* A break week reads as a break, not as a week with no classes yet. */
+.hw-weeks__row[data-break] { background: var(--hw-sunken); }
+.hw-weeks__row[data-break] .hw-weeks__number { font-style: italic; }
+.hw-weeks__number { font-weight: var(--hw-weight-label); }
+.hw-weeks__dates { color: var(--hw-ink-muted); font-size: var(--hw-text-body); }
+@media (max-width: 900px) {
+  .hw-weeks__row { grid-template-columns: 1fr 1fr; }
+  .hw-weeks__row > .hw-control:last-child, .hw-weeks__row > button:last-child { justify-self: start; }
+}
+
+/* The matched run in a search result. Never colour alone: it is also heavier. */
+.hw-mark {
+  background: var(--hw-accent-soft);
+  color: var(--hw-ink);
+  font-weight: var(--hw-weight-emphasis);
+  border-radius: 3px;
+  padding-inline: 1px;
+}
+
+/* -- taking attendance: a class taken live, read from a step away ------------------------------ */
+/* The count is the largest thing on the screen, because it is what the lecturer glances at while
+   the queue moves. The two lists sit side by side so "who is left" never needs a scroll to find. */
+.hw-live__figure { display: grid; gap: var(--hw-space-3); margin-block: var(--hw-space-2) var(--hw-space-4); }
+.hw-live__count {
+  margin: 0; font-family: var(--hw-font-display); font-size: var(--hw-text-hero);
+  line-height: 1; color: var(--hw-ink);
+}
+.hw-live__of { margin: var(--hw-space-2) 0 0; color: var(--hw-ink-muted); font-size: var(--hw-text-lead); }
+.hw-live__gauge { height: 12px; }
+.hw-live__line { margin: 0 0 var(--hw-space-4); }
+.hw-live__terminal .hw-panel { margin-block-end: var(--hw-space-4); }
+.hw-live__columns { display: grid; gap: var(--hw-space-6); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.hw-live__column {
+  border: var(--hw-rule-width) solid var(--hw-rule); border-radius: var(--hw-radius-card);
+  background: var(--hw-surface); padding: var(--hw-space-4) var(--hw-space-4) var(--hw-space-2);
+  min-width: 0;
+}
+.hw-live__column .hw-section__title { margin-block-start: 0; }
+.hw-live__column .hw-input { width: 100%; max-width: none; }
+.hw-live__list { list-style: none; margin: 0; padding: 0; max-height: 52vh; overflow-y: auto; }
+.hw-live__item {
+  display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center;
+  gap: var(--hw-space-3); padding: var(--hw-space-2) 0;
+  border-block-end: var(--hw-rule-width) solid var(--hw-rule);
+}
+.hw-live__item:last-child { border-block-end: 0; }
+.hw-live__mark { color: var(--hw-present); font-weight: var(--hw-weight-emphasis); text-align: center; }
+.hw-live__mark--waiting { color: var(--hw-ink-muted); }
+.hw-live__who { display: grid; min-width: 0; }
+.hw-live__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--hw-weight-label); }
+.hw-live__matric { color: var(--hw-ink-muted); font-size: var(--hw-text-table); }
+.hw-live__time { color: var(--hw-ink-muted); font-size: var(--hw-text-table); }
+.hw-live__empty { padding: var(--hw-space-4) 0; color: var(--hw-ink-muted); }
+@media (max-width: 900px) {
+  .hw-live__columns { grid-template-columns: 1fr; }
+}
+/* On the course header: the button that starts it, and a line under it while it is open. */
+.hw-live-cta { display: grid; justify-items: end; gap: var(--hw-space-1); }
+.hw-live-cta__note { margin: 0; color: var(--hw-ink-muted); font-size: var(--hw-text-body); }
