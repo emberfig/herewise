@@ -6,8 +6,9 @@
 // Point it at scripts/dev_server.py with the demo register. It works through the actions added
 // after two real runs, each one something a lecturer asked for and none of it reachable by loading
 // a route: deleting a course from its own settings, deleting a cancelled class from its row,
-// adding one student by hand through the preview, and Device explaining what to do when the
-// register and the terminal disagree.
+// adding one student by hand through the preview, Device explaining what to do when the
+// register and the terminal disagree, reopening an ended class from its register, and choosing
+// Dark and then System from the account menu.
 //
 // It exists because walk_screens.mjs loads every route and check_layout.mjs measures every width,
 // and neither would have noticed that New course led nowhere: the link rendered, and nothing
@@ -220,6 +221,60 @@ check(await run(`![...document.querySelectorAll('hw-sheet .sheet__row')].some((r
 await go("device", 3200);
 check(await run(`document.body.innerText.includes('If this register and the terminal disagree')`),
   "Device explains when the two disagree");
+
+// -- 4b. reopening an ended class for whoever had not scanned (2026-10-22) -------------------------
+// Taken and ended through the API, then reopened from the class register's own button and ended
+// again. Cancelled at the end so the throwaway class counts towards nothing: a reopened class is
+// never deleted, because the reopening is a record like a correction.
+const taken = await run(`fetch('/api/courses/2/live', {method:'POST', headers:{'Content-Type':'application/json'},
+  body: '{}'}).then(r => r.json())`);
+const takenId = taken?.register?.session?.id;
+check(Boolean(takenId), "a class was taken live to reopen", taken?.error || "");
+await run(`fetch('/api/live/${takenId}/end', {method:'POST', headers:{'Content-Type':'application/json'},
+  body: '{}'}).then(r => r.status)`);
+await go(`classes/${takenId}`, 2800);
+check(await press("Reopen attendance"), "the ended class's register offers Reopen attendance");
+await sleep(600);
+check(await press("Reopen attendance", "dialog[open]"), "its dialog's Reopen attendance can be pressed");
+await sleep(4000);
+const reopened = await run(`(async () => ({ hash: location.hash,
+  says: document.querySelector('.hw-page__subtitle')?.textContent || "",
+  open: (await (await fetch('/api/live')).json()).open }))()`);
+check(reopened.hash === "#/live" && reopened.open?.class_id === takenId && Boolean(reopened.open?.reopened_at)
+  && reopened.says.includes("reopened"),
+  "it went to Taking attendance, open again and saying so", JSON.stringify({ hash: reopened.hash, says: reopened.says }));
+check(await press("End attendance"), "End attendance can be pressed on the reopened class");
+await sleep(600);
+check(await run(`document.querySelector('dialog[open] h2')?.textContent.endsWith('again?')`),
+  "its End dialog says it is ending it again");
+check(await press("End attendance", "dialog[open]"), "the dialog's End attendance can be pressed");
+await sleep(4000);
+check(await run(`document.body.innerText.includes('came in while it was reopened')`),
+  "Attendance taken says how many came in while it was reopened");
+await run(`fetch('/api/sessions/${takenId}/cancel', {method:'POST', headers:{'Content-Type':'application/json'},
+  body: JSON.stringify({note: 'Made by the check.'})}).then(r => r.status)`);
+
+// -- 4c. light and dark, from the account menu (2026-10-22) -----------------------------------------
+await go("today", 2500);
+await run(`window.dispatchEvent(new CustomEvent('hw-account-menu'))`);
+await sleep(600);
+const pick = (value) => run(`(() => {
+  const input = document.querySelector('dialog[open] input[name=appearance-menu][value=${value}]');
+  if (!input) return false;
+  input.click();
+  return true;
+})()`);
+check(await pick("dark"), "the account menu offers Dark");
+await sleep(1200);
+const dark = await run(`(async () => ({ theme: document.documentElement.dataset.theme || null,
+  saved: (await (await fetch('/api/appearance')).json()).theme }))()`);
+check(dark.theme === "dark" && dark.saved === "dark", "Dark takes effect at once and is kept", JSON.stringify(dark));
+check(await pick("system"), "System can be chosen again");
+await sleep(1200);
+const back = await run(`(async () => ({ theme: document.documentElement.dataset.theme || null,
+  saved: (await (await fetch('/api/appearance')).json()).theme }))()`);
+check(back.theme === null && back.saved === "system", "System leaves it to Windows again", JSON.stringify(back));
+await run(`document.querySelector('dialog[open]')?.close()`);
 
 // -- 5. setting up this computer's Ethernet (0.1.16) ------------------------------------------------
 // Pressed only against `scripts/dev_server.py --fake-network`, and only when every adapter the

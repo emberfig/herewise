@@ -354,6 +354,9 @@ def grid(conn: sqlite3.Connection, template_id: int, today: date | None = None, 
             slots.append({"slot": i + 1, "session_id": s["id"] if s else None, "state": state,
                           "date": s["date"] if s else None, "start_time": s["start_time"] if s else None,
                           "kind": s["kind"] if s else None,
+                          # An open class reopened after it ended says since when it is open again.
+                          "reopened_at": next((r["reopened_at"] for r in reversed(
+                              register.reopenings(conn, s["id"]))), None) if state == "open" else None,
                           # Whose class it was: a group's name, or None for everybody on the course.
                           "group": names.get(s["group_id"]) if s else None})
         current = w["starts_on"] is not None and w["starts_on"] <= today.isoformat() <= w["ends_on"]

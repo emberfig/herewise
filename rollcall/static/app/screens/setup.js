@@ -23,6 +23,7 @@ import {
   warningBoxes,
 } from "./roster-file.js";
 import { ethernetOffer, offerLead } from "./ethernet.js";
+import { appearanceChoice } from "../appearance.js";
 
 const STEPS = ["Your account", "Session", "Terminal", "Review", "First roster"];
 
@@ -333,7 +334,14 @@ function accountStep() {
     heading: "Your account",
     lead: "This is the first account, and it owns the register. It can do everything, including making " +
       "other accounts and deciding what each one is allowed to do.",
-    children: [name, username],
+    // Offered once, here, where the person who will use this computer first meets Herewise
+    // (2026-10-22). It takes effect as soon as it is picked, and changes nothing in the register.
+    children: [name, username, h("div", { class: "hw-stack hw-stack--tight" },
+      appearanceChoice({ legend: "How should Herewise look on this computer?", name: "appearance-setup" }),
+      h("p", { class: "hw-muted", style: { margin: 0 } },
+        "Takes effect now and is kept for this computer, apart from the rest of setup. Change it any "
+        + "time from your name at the top of every screen.")),
+    ],
     back: false,
     primary: next,
     note: "Nothing is saved until the review step.",

@@ -14,6 +14,7 @@ import {
   keepFocusOn, invalid, actionCard, announce, button, dialog, field, fill, h, loadingCards, longDate, page, plural,
   saveFile, section, setBusy, stickyActions, table, toast,
 } from "../ui.js";
+import { appearanceChoice } from "../appearance.js";
 
 // Seven settings left this screen on 2026-09-23, once attendance was taken with Start and End: the
 // grace either side of a class, the three numbers for working classes out from scans, how long a
@@ -177,6 +178,7 @@ function draw(host, settings, sessions, reload) {
       // every group above it, and from the last setting the title is off the screen.
       stickyActions(savedNote, save),
       academicSessions(sessions, reload),
+      appearanceSection(),
       elsewhere(),
     ],
   }));
@@ -205,6 +207,20 @@ function yourData() {
     h("p", { class: "hw-card__foot" }, go,
       h("a", { class: "hw-link", href: href("settings/backup"), style: { marginInlineStart: "var(--hw-space-4)" } },
         "Backups and restoring"))));
+}
+
+// -- appearance -----------------------------------------------------------------------------------
+//
+// Asked for on 2026-10-22. Takes effect when it is picked and is kept for this computer alone, so it
+// is outside the Save bar: it is not a setting of the register, and it is also in the account menu
+// for anybody whose role cannot open this screen.
+
+function appearanceSection() {
+  return section("Appearance", h("div", { class: "hw-card hw-stack hw-stack--tight" },
+    appearanceChoice({ legend: "How Herewise looks on this computer", name: "appearance-settings" }),
+    h("p", { class: "hw-muted", style: { margin: 0 } },
+      "Changes as soon as you choose, for everyone who uses Herewise on this computer. Exported PDFs "
+      + "and Excel files look the same whichever you choose.")));
 }
 
 // -- screen 36 ------------------------------------------------------------------------------------

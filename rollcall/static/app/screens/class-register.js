@@ -16,7 +16,8 @@ import { ApiError, api } from "../api.js";
 import { href } from "../router.js";
 import { session } from "../session.js";
 import { openDrawer } from "../../components/hw-drawer.js";
-import { invalid, matricText, announce, button, clear, dialog, field, fill, h, loadingTable, longDate, plural, setBusy, shortDate, table, toast } from "../ui.js";
+import { invalid, matricText, actionRow, announce, button, clear, clockTime, dialog, field, fill, h, loadingTable, longDate, plural, setBusy, shortDate, table, toast } from "../ui.js";
+import { reopenButton, windowsText } from "./reopen.js";
 
 const FILTERS = [
   { id: "present", label: "present", glyph: "✓", tone: "present",
@@ -48,7 +49,7 @@ export default {
       ctx.shell?.refresh?.();
       return this.render(fill(view), ctx);
     };
-    const screen = draw(host, data, sessionId, reload);
+    const screen = draw(host, data, sessionId, reload, ctx.go);
     if (data.open) follow(view, host, sessionId, screen, reload);
   },
 };
@@ -88,9 +89,11 @@ function follow(view, host, sessionId, screen, reload) {
   timer = setTimeout(look, FOLLOW_MS);
 }
 
-function draw(host, data, sessionId, reload) {
+function draw(host, data, sessionId, reload, go) {
   const s = data.session;
   const cancelled = Boolean(s.cancelled_at);
+  // The latest time it was opened again after it ended, if it was (2026-10-22).
+  const reopened = (data.reopenings || []).at(-1) || null;
   const state = { filter: "all", query: "" };
 
   const rows = () => {
@@ -217,17 +220,23 @@ function draw(host, data, sessionId, reload) {
         h("h1", { class: "hw-page__title", style: { fontSize: "var(--hw-text-title)" } },
           longDate(s.date)),
         h("p", { class: "hw-page__subtitle" },
-          (data.open ? `from ${s.start_time}, still taking attendance`
-            : `${s.start_time} to ${s.end_time}`)
+          (data.open && reopened ? `from ${s.start_time}, open again since ${clockTime(reopened.reopened_at)}`
+            : data.open ? `from ${s.start_time}, still taking attendance`
+              : windowsText(data) || `${s.start_time} to ${s.end_time}`)
           + ` · ${s.course_code ? `${s.course_code} ` : ""}`
           // Who it was for, on a course with groups: its register is that group's alone.
           + (data.group ? `${data.group.name} · ` : "")
           + (s.opened_at ? "taken live" : s.kind === "device" ? "found from scans" : "recorded by hand"))),
-      cancel),
+      // Reopen beside Cancel: both change what an ended class counts, and neither is the main act.
+      data.reopen ? actionRow(reopenButton(data, go), cancel) : cancel),
     data.unassigned ? notice("warn", "This class is not on a course yet.",
       "Until it is, nobody is on its register and it counts towards nothing.",
       session.can("class.manage") ? { label: "Assign it to a course", path: "unassigned" } : null) : null,
-    data.open ? notice("quiet", "This class is still taking attendance.",
+    data.open && reopened ? notice("quiet", "This class is open again for the students who had not scanned.",
+      `Reopened at ${clockTime(reopened.reopened_at)}${reopened.by ? ` by ${reopened.by}` : ""}. Everyone present `
+      + "stays present. Nobody is absent until it is ended again, and it counts towards nothing until then.",
+      session.can("register.pull") ? { label: "Open the class taking attendance", path: "live" } : null) : null,
+    data.open && !reopened ? notice("quiet", "This class is still taking attendance.",
       "Nobody is absent until it is ended, and it counts towards nothing until then.",
       session.can("register.pull") ? { label: "Open the class taking attendance", path: "live" } : null) : null,
     cancelled ? notice("quiet", "This class was cancelled, so it counts towards nothing.",

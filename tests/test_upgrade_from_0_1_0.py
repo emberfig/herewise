@@ -61,7 +61,7 @@ def test_a_register_made_by_0_1_0_keeps_everything_through_the_upgrade(tmp_path)
 
     db.initialise(conn)
 
-    assert conn.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION == 13
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION == 14
     after = {name: conn.execute(f"SELECT COUNT(*) FROM {name}").fetchone()[0] for name in before}
     assert after == before
     # The rebuilt table keeps its rows and their words, not just their number.

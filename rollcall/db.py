@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterator
 
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 
 SCHEMA = """
 CREATE TABLE settings(
@@ -499,9 +499,33 @@ CREATE INDEX group_members_by_group ON course_group_members(group_id, person_id)
 ALTER TABLE class_sessions ADD COLUMN group_id INTEGER REFERENCES course_groups(id);
 """
 
+SCHEMA_V14 = """
+-- A class taken live and ended, opened again for whoever had not scanned (asked for on 2026-10-22:
+-- "reopening the attendance again for those that haven't signed to be able to sign"). One row per
+-- reopening. The class counts the scans inside each of its windows and nowhere between them:
+-- opened_at to the first row's ended_at, each row's reopened_at to the next row's ended_at, and
+-- the last row's reopened_at to the class's closed_at. A scan made after it ended and before it
+-- was reopened is in no window, because that gap may have been another class's.
+CREATE TABLE class_reopenings(
+  id               INTEGER PRIMARY KEY,
+  class_session_id INTEGER NOT NULL REFERENCES class_sessions(id),
+  ended_at         TEXT NOT NULL,
+  reopened_at      TEXT NOT NULL CHECK(reopened_at >= ended_at),
+  account_id       INTEGER REFERENCES accounts(id),
+  present_before   INTEGER NOT NULL,
+  created_at       TEXT NOT NULL
+);
+CREATE INDEX reopenings_by_class ON class_reopenings(class_session_id, id);
+-- What a window was is evidence, like a scan: kept as written.
+CREATE TRIGGER reopenings_immutable_update BEFORE UPDATE ON class_reopenings
+BEGIN SELECT RAISE(ABORT, 'class reopenings are append-only'); END;
+CREATE TRIGGER reopenings_immutable_delete BEFORE DELETE ON class_reopenings
+BEGIN SELECT RAISE(ABORT, 'class reopenings are append-only'); END;
+"""
+
 MIGRATIONS = {1: SCHEMA, 2: SCHEMA_V2, 3: SCHEMA_V3, 4: SCHEMA_V4, 5: SCHEMA_V5, 6: SCHEMA_V6,
               7: SCHEMA_V7, 8: SCHEMA_V8, 9: SCHEMA_V9, 10: SCHEMA_V10, 11: SCHEMA_V11, 12: SCHEMA_V12,
-              13: SCHEMA_V13}
+              13: SCHEMA_V13, 14: SCHEMA_V14}
 
 DEFAULT_SETTINGS = {
     "attendance_threshold_percent": "75",

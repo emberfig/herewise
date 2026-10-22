@@ -22,7 +22,7 @@ from pathlib import Path
 
 import uvicorn
 
-from . import NAME, VERSION, logs
+from . import NAME, VERSION, appearance, logs
 from .app import create_app
 from .config import HOST, data_dir, free_port
 
@@ -111,8 +111,11 @@ def run() -> int:
         return 0
 
     configure(webview)
+    # The window shows its own background until the page paints: the paper of the theme the page is
+    # about to draw, so a dark Herewise does not open on a white frame (rollcall/appearance.py).
     window = webview.create_window(NAME, server.url, width=WIDTH, height=HEIGHT,
-                                   min_size=(MIN_WIDTH, MIN_HEIGHT), confirm_close=False)
+                                   min_size=(MIN_WIDTH, MIN_HEIGHT), confirm_close=False,
+                                   background_color=appearance.window_background(appearance.read(folder)))
 
     def opened() -> None:
         log.info("window open at %s", server.url)

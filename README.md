@@ -84,7 +84,7 @@ Download `Herewise-Setup-<version>.exe` from [Releases](https://github.com/ember
 and check it against `SHA256SUMS.txt`:
 
 ```powershell
-Get-FileHash .\Herewise-Setup-0.1.17.exe -Algorithm SHA256
+Get-FileHash .\Herewise-Setup-0.1.18.exe -Algorithm SHA256
 ```
 
 The installer is per user and needs no administrator rights. It is not yet code signed, so Windows

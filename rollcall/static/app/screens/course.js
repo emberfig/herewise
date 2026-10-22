@@ -91,13 +91,14 @@ function takeAttendance(course, open) {
       button({ label: "Open the class taking attendance", primary: true, glyph: "◔ ", href: href("live") }),
       h("p", { class: "hw-live-cta__note" },
         `${open.group ? `${open.group} · ` : ""}${open.week ? `${open.week}, class ${open.position} · ` : ""}`
-        + `since ${open.opened_at.slice(11, 16)} · ${open.present} of ${open.students} present`));
+        + (open.reopened_at ? `open again since ${open.reopened_at.slice(11, 16)}` : `since ${open.opened_at.slice(11, 16)}`)
+        + ` · ${open.present} of ${open.students} present`));
   }
   const start = button({
     label: "Start taking attendance", primary: true, busyLabel: "Starting", permission: "register.pull",
     align: "end",
     reason: open ? `${open.code}${open.group ? ` ${open.group}` : ""} is taking attendance, since `
-      + `${open.opened_at.slice(11, 16)}. End it before starting another.` : "",
+      + `${(open.reopened_at || open.opened_at).slice(11, 16)}. End it before starting another.` : "",
     onClick: async () => {
       setBusy(start, true);
       try {

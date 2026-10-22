@@ -5,6 +5,7 @@ For each student at each class, the first of these that applies decides:
   1. the lecturer's latest correction for that class (present or absent, with a note)
   2. a scan between the start time minus the "before" grace and the end time plus the "after" grace,
      or, for a class taken live, a scan between the moment it was started and the moment it was ended
+     (and, for one reopened after it ended, between each reopening and the end after it)
   3. an excused absence covering that date, for that course or for every course
   4. otherwise absent
 
@@ -123,10 +124,10 @@ def _group_of_course(conn: sqlite3.Connection, course_id: int, group_id: int | N
 
 def scanned_in(conn: sqlite3.Connection, s) -> set[int]:
     """The people with a scan inside a class's window, by person id."""
-    start, end = _window(conn, s)
+    where, params = in_windows("pu.timestamp", windows(conn, s))
     return {r[0] for r in conn.execute(
         "SELECT DISTINCT p.id FROM punches pu JOIN people p ON CAST(p.device_user_id AS TEXT) = pu.device_user_id"
-        " WHERE pu.timestamp BETWEEN ? AND ?", (start, end))}
+        f" WHERE {where}", params)}
 
 
 def assign_course(conn: sqlite3.Connection, class_session_id: int, course_id: int, account_id: int) -> None:
@@ -163,10 +164,9 @@ def unassigned_sessions(conn: sqlite3.Connection) -> list[dict]:
         " WHERE s.course_id IS NULL AND s.cancelled_at IS NULL ORDER BY s.date, s.start_time").fetchall()
     result = []
     for s in rows:
-        opens, closes = _window(conn, s)
+        where, params = in_windows("timestamp", windows(conn, s))
         scanners = [r["device_user_id"] for r in conn.execute(
-            "SELECT DISTINCT device_user_id FROM punches WHERE timestamp BETWEEN ? AND ?",
-            (opens, closes))]
+            f"SELECT DISTINCT device_user_id FROM punches WHERE {where}", params)]
         candidates = []
         people = None
         for course in conn.execute(
@@ -326,21 +326,51 @@ DETECT_MIN_STUDENTS = 5
 DETECT_GAP_MINUTES = 90
 
 
-def _window(conn: sqlite3.Connection, s: sqlite3.Row) -> tuple[str, str]:
+def reopenings(conn: sqlite3.Connection, class_session_id: int) -> list[sqlite3.Row]:
+    """Each time a class taken live was opened again after it ended, oldest first (db.SCHEMA_V14)."""
+    return conn.execute(
+        "SELECT r.*, a.display_name AS reopened_by FROM class_reopenings r"
+        " LEFT JOIN accounts a ON a.id = r.account_id WHERE r.class_session_id = ? ORDER BY r.id",
+        (class_session_id,)).fetchall()
+
+
+def windows(conn: sqlite3.Connection, s: sqlite3.Row) -> list[tuple[str, str]]:
+    """The stretches of time a class counts scans in, earliest first.
+
+    One for almost every class. A class taken live that was reopened has one per time it was open:
+    Start to the first End, then each reopening to the End after it. The time between an End and
+    the next reopening is in none of them, because another class may have been taken in it.
+    """
     if s["opened_at"]:
         # Exactly the minutes the lecturer had it open, with no grace. The grace exists to guess
         # where a class began and ended from a timetable; a class started and ended by hand needs
         # no guess, and a grace would count a scan made for the class before it in the same room.
-        return s["opened_at"], s["closed_at"] or db.now()
+        out, start = [], s["opened_at"]
+        for r in reopenings(conn, s["id"]):
+            out.append((start, r["ended_at"]))
+            start = r["reopened_at"]
+        out.append((start, s["closed_at"] or db.now()))
+        return out
     before, after = GRACE_BEFORE_MINUTES, GRACE_AFTER_MINUTES
     start = datetime.fromisoformat(f"{s['date']}T{s['start_time']}:00") - timedelta(minutes=before)
     end = datetime.fromisoformat(f"{s['date']}T{s['end_time']}:00") + timedelta(minutes=after)
-    return start.isoformat(), end.isoformat()
+    return [(start.isoformat(), end.isoformat())]
 
 
-def window_for(conn: sqlite3.Connection, s: sqlite3.Row) -> tuple[str, str]:
-    """A class's window with the grace either side, the same one the register counts scans in."""
-    return _window(conn, s)
+def in_windows(column: str, spans: list[tuple[str, str]]) -> tuple[str, list[str]]:
+    """A WHERE clause matching ``column`` inside any of the spans, and its parameters."""
+    return ("(" + " OR ".join(f"{column} BETWEEN ? AND ?" for _ in spans) + ")",
+            [edge for span in spans for edge in span])
+
+
+def inside(timestamp: str, spans: list[tuple[str, str]]) -> bool:
+    return any(start <= timestamp <= end for start, end in spans)
+
+
+def _window(conn: sqlite3.Connection, s: sqlite3.Row) -> tuple[str, str]:
+    """From the start of a class's first window to the end of its last, for saying when it was."""
+    spans = windows(conn, s)
+    return spans[0][0], spans[-1][1]
 
 
 # What can never be deleted, and what is only counted. This is the same line the database itself
@@ -356,7 +386,10 @@ def window_for(conn: sqlite3.Connection, s: sqlite3.Row) -> tuple[str, str]:
 # So scans are stated, not a refusal. What refuses is a decision somebody signed: a correction, a
 # correction request, an excused absence. Those are the register's word that a person decided
 # something, and they outlive the structure around them.
-SIGNED = ("corrections", "correction_requests", "excusals")
+#
+# A reopening is one too (2026-10-22): somebody decided the class should take more scans after it
+# ended, and its windows are what its register is counted from.
+SIGNED = ("corrections", "correction_requests", "excusals", "reopenings")
 
 
 def blocking(held: dict[str, int]) -> dict[str, int]:
@@ -369,15 +402,14 @@ def holds(conn: sqlite3.Connection, class_session_id: int) -> dict[str, int]:
     s = conn.execute("SELECT * FROM class_sessions WHERE id = ?", (class_session_id,)).fetchone()
     if s is None:
         raise RegisterError("Unknown class.")
-    start, end = _window(conn, s)
+    where, params = in_windows("timestamp", windows(conn, s))
     found: dict[str, int] = {}
-    scans = conn.execute(
-        "SELECT COUNT(*) FROM punches WHERE timestamp >= ? AND timestamp <= ?", (start, end)
-    ).fetchone()[0]
+    scans = conn.execute(f"SELECT COUNT(*) FROM punches WHERE {where}", params).fetchone()[0]
     if scans:
         found["scans"] = scans
     for table, key in (("attendance_marks", "corrections"),
-                       ("correction_requests", "correction_requests")):
+                       ("correction_requests", "correction_requests"),
+                       ("class_reopenings", "reopenings")):
         count = conn.execute(
             f"SELECT COUNT(*) FROM {table} WHERE class_session_id = ?", (class_session_id,)
         ).fetchone()[0]
@@ -394,6 +426,7 @@ HOLD_NAMES = {
     "corrections": ("correction", "corrections"),
     "correction_requests": ("correction request", "correction requests"),
     "excusals": ("excused absence", "excused absences"),
+    "reopenings": ("reopening", "reopenings"),
 }
 
 
@@ -440,16 +473,18 @@ def session_register(conn: sqlite3.Connection, class_session_id: int) -> dict:
     ).fetchone()
     if s is None:
         raise RegisterError("Unknown class.")
-    window_start, window_end = _window(conn, s)
+    spans = windows(conn, s)
+    window_start, window_end = spans[0][0], spans[-1][1]
     # Everybody on the course, or only the class's group on the day it was held (groups.py).
     members = groups.class_members(conn, s)
     still_open = is_open(s)
+    reopened = reopenings(conn, class_session_id) if s["opened_at"] else []
 
+    where, params = in_windows("timestamp", spans)
     scans = {
         r["device_user_id"]: r for r in conn.execute(
             "SELECT device_user_id, MIN(timestamp) AS first_scan, MAX(timestamp) AS last_scan, COUNT(*) AS scans"
-            " FROM punches WHERE timestamp BETWEEN ? AND ? GROUP BY device_user_id",
-            (window_start, window_end),
+            f" FROM punches WHERE {where} GROUP BY device_user_id", params,
         )
     }
     marks: dict[int, sqlite3.Row] = {}
@@ -529,6 +564,11 @@ def session_register(conn: sqlite3.Connection, class_session_id: int) -> dict:
         "open": still_open,
         "unassigned": s["course_id"] is None,
         "window": {"from": window_start, "to": window_end},
+        "windows": [{"from": a, "to": b} for a, b in spans],
+        # Each time it was opened again, with how many were present before, so a screen can say how
+        # many came in while it was reopened.
+        "reopenings": [{"ended_at": r["ended_at"], "reopened_at": r["reopened_at"], "by": r["reopened_by"],
+                        "present_before": r["present_before"]} for r in reopened],
         "totals": {"students": total, "present": present_count, "excused": excused_count,
                    "waiting": waiting_count,
                    "absent": total - present_count - excused_count - waiting_count,
@@ -958,11 +998,12 @@ def detect_sessions(conn: sqlite3.Connection, account_id: int | None = None) -> 
         yesterday = (first.date() - timedelta(days=1)).isoformat()
         for s in conn.execute("SELECT * FROM class_sessions WHERE date BETWEEN ? AND ?"
                               " AND academic_session_id = ?", (yesterday, day, academic["id"])):
-            # The class's own window, which for a class taken live runs to now while it is open. A
+            # The class's own windows, which for a class taken live run to now while it is open. A
             # window rebuilt here from the times would end half an hour after an open class began,
-            # and a pull during a long lecture would make a second class of its later scans.
-            start, end = (datetime.fromisoformat(x) for x in _window(conn, s))
-            if not (start <= last and first <= end):
+            # and a pull during a long lecture would make a second class of its later scans. A
+            # reopened class covers only its windows, not the gap between an End and the reopening.
+            spans = [(datetime.fromisoformat(a), datetime.fromisoformat(b)) for a, b in windows(conn, s)]
+            if not any(start <= last and first <= end for start, end in spans):
                 continue
             if s["course_id"] is None:
                 on_it = s["level_id"] == level_id

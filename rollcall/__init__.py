@@ -6,4 +6,4 @@ so nothing has to guess it again.
 """
 
 NAME = "Herewise"
-VERSION = "0.1.17"
+VERSION = "0.1.18"

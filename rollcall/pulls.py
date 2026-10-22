@@ -59,8 +59,8 @@ def batch(conn: sqlite3.Connection, batch_id: int) -> dict:
 
     classes = []
     for s in sessions:
-        opens, closes = register.window_for(conn, s)
-        window = [r["timestamp"] for r in scans if opens <= r["timestamp"] <= closes]
+        spans = register.windows(conn, s)
+        window = [r["timestamp"] for r in scans if register.inside(r["timestamp"], spans)]
         if not window:
             continue
         classes.append({
@@ -74,7 +74,7 @@ def batch(conn: sqlite3.Connection, batch_id: int) -> dict:
             "end_time": s["end_time"],
             "needs_course": s["course_id"] is None,
             "scans": len(window),
-            "students": len({r["device_user_id"] for r in scans if opens <= r["timestamp"] <= closes}),
+            "students": len({r["device_user_id"] for r in scans if register.inside(r["timestamp"], spans)}),
             "first_scan": window[0],
             "last_scan": window[-1],
             "strip": _bucket_minutes(window),

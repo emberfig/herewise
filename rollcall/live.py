@@ -196,11 +196,15 @@ def end(conn: sqlite3.Connection, class_id: int, account_id: int | None, factory
 
     ``ended_at`` is HH:MM on the class's own day, for a class ended late: somebody who forgot to
     press End until the evening would otherwise count every scan made after the lecture.
+
+    Ending a reopened class is the same press. It is logged as a second end, with how many came in
+    while it was open again, so the log says the class's result changed and by how much.
     """
     s = _class(conn, class_id)
     if not register.is_open(s):
         raise LiveError("This class is not taking attendance.")
-    closing = _closing_time(s, ended_at)
+    reopened = register.reopenings(conn, class_id)
+    closing = _closing_time(s, ended_at, reopened[-1] if reopened else None)
 
     # Before closing, so a scan made in the last seconds is inside the class it belongs to.
     terminal = refresh(conn, class_id, factory, force=True)
@@ -213,27 +217,116 @@ def end(conn: sqlite3.Connection, class_id: int, account_id: int | None, factory
             raise LiveError("This class was ended already.")
     result = register.session_register(conn, class_id)
     totals = result["totals"]
+    label = f"{s['code']}{' ' + s['group_name'] if s['group_name'] else ''} {s['date']}"
+    counts = (f"{totals['present']} present, {totals['absent']} absent"
+              + (f", {totals['excused']} excused" if totals["excused"] else ""))
     with db.transaction(conn):
-        db.audit(conn, account_id, "session.live_end", "class_sessions", class_id,
-                 f"{s['code']}{' ' + s['group_name'] if s['group_name'] else ''} {s['date']} "
-                 f"{s['start_time']}-{closing[11:16]}: {totals['present']} present, "
-                 f"{totals['absent']} absent"
-                 + (f", {totals['excused']} excused" if totals["excused"] else ""))
+        if reopened:
+            last = reopened[-1]
+            more = totals["present"] - last["present_before"]
+            db.audit(conn, account_id, "session.live_end_again", "class_sessions", class_id,
+                     f"{label}, reopened {last['reopened_at'][11:16]}-{closing[11:16]}: {counts}; "
+                     f"{more} more present than before it was reopened")
+        else:
+            db.audit(conn, account_id, "session.live_end", "class_sessions", class_id,
+                     f"{label} {s['start_time']}-{closing[11:16]}: {counts}")
     placed = _place_on_sheet(conn, class_id, account_id)
-    return {**result, "terminal": terminal, "sheet": placed}
+    return {**result, "terminal": terminal, "sheet": placed, "reopen": reopen_offer(conn, class_id)}
 
 
-def _closing_time(s: sqlite3.Row, ended_at: str | None) -> str:
+def _closing_time(s: sqlite3.Row, ended_at: str | None, reopened: sqlite3.Row | None = None) -> str:
     now = db.now()
     if not ended_at:
         return now
     register.validate_session_fields(s["date"], s["start_time"], ended_at)
     closing = f"{s['date']}T{ended_at}:00"
+    if reopened is not None and closing < reopened["reopened_at"]:
+        raise LiveError(f"The class was reopened at {reopened['reopened_at'][11:16]}, so it cannot end "
+                        "before that.")
     if closing < s["opened_at"]:
         raise LiveError(f"The class was started at {s['opened_at'][11:16]}, so it cannot end before that.")
     if closing > now:
         raise LiveError("That time has not come yet. End it now, or give a time that has passed.")
     return closing
+
+
+def can_reopen(conn: sqlite3.Connection, s: sqlite3.Row) -> str | None:
+    """Why this class cannot be reopened now, or None when it can. For the refusal and the screens.
+
+    Asked for on 2026-10-22, for the students a lecturer missed: a class taken live and ended can be
+    opened again so that whoever had not scanned can, on the day it was held. Not on a later day:
+    the class's date is the day its excusals, groups and week are read for, and a scan made on
+    another day is attendance on that day, not this one. A student who was there and missed it
+    after that is a correction with a note, which is what corrections are for.
+    """
+    if not s["opened_at"]:
+        return ("Only a class taken live can be reopened. This one was worked out from the scans or "
+                "recorded by hand: correct a student's mark instead.")
+    if s["cancelled_at"]:
+        return "This class was cancelled. Restore it first."
+    if register.is_open(s):
+        return "This class is taking attendance already."
+    if s["date"] != db.now()[:10]:
+        return ("A class can be reopened only on the day it was held. For a student who was there, "
+                "correct their mark with a note instead.")
+    other = open_class(conn)
+    if other is not None:
+        return f"{other['code'] or 'Another class'} is taking attendance. End it before reopening this one."
+    return None
+
+
+def reopen_offer(conn: sqlite3.Connection, class_id: int) -> dict | None:
+    """What a screen offers for reopening: nothing for a class that was never taken live, or is
+    open or cancelled, and otherwise the button with the reason it is unavailable, if it is."""
+    s = _class(conn, class_id)
+    if not s["opened_at"] or s["cancelled_at"] or register.is_open(s):
+        return None
+    return {"reason": can_reopen(conn, s)}
+
+
+def reopen(conn: sqlite3.Connection, class_id: int, account_id: int | None, factory=K40) -> int:
+    """Open an ended class again, for whoever had not scanned.
+
+    Nothing already decided changes. The scans of the first window stay where they are, so whoever
+    was present stays present; a correction still beats any scan, and an excused absence still gives
+    way to one, exactly as before. While it is open the class is an open class like any other: the
+    students without a scan are "not yet" again, it is counted in no total, it holds the terminal,
+    and enrolment waits. Ending it again makes whoever still has no scan absent again.
+
+    Only scans inside the new window count. The minutes between the End and now are in no window,
+    because another class may have been taken in them.
+    """
+    s = _class(conn, class_id)
+    refused = can_reopen(conn, s)
+    if refused:
+        raise LiveError(refused)
+    device = _default_device(conn)
+    # The terminal answering, and on this computer's time, before anybody queues at it: the same
+    # reasons as Start.
+    synced = services.sync_time(conn, device["id"], account_id, factory)
+    # Never before the End it follows, so the windows cannot overlap.
+    reopened = max(s["closed_at"], min(db.now(), synced["device_time"][:19]))
+    totals = register.session_register(conn, class_id)["totals"]
+    try:
+        with db.transaction(conn):
+            conn.execute(
+                "INSERT INTO class_reopenings(class_session_id, ended_at, reopened_at, account_id,"
+                " present_before, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (class_id, s["closed_at"], reopened, account_id, totals["present"], db.now()))
+            changed = conn.execute("UPDATE class_sessions SET closed_at = NULL WHERE id = ? AND closed_at = ?",
+                                   (class_id, s["closed_at"])).rowcount
+            if not changed:
+                raise LiveError("This class changed while you were reopening it. Look at it again.")
+            db.audit(conn, account_id, "session.live_reopen", "class_sessions", class_id,
+                     f"{s['code']}{' ' + s['group_name'] if s['group_name'] else ''} {s['date']}, "
+                     f"ended {s['closed_at'][11:16]}, reopened {reopened[11:16]} with "
+                     f"{totals['present']} of {totals['students']} present")
+    except sqlite3.IntegrityError:
+        # The one-open-class index: somebody started another class in the same moment.
+        raise LiveError("Another class started taking attendance just now. End it first.") from None
+    with _seen_lock:
+        _seen.pop(device["id"], None)
+    return class_id
 
 
 def _template(conn: sqlite3.Connection, course_id: int, account_id: int | None) -> dict:
@@ -358,7 +451,12 @@ def status(conn: sqlite3.Connection) -> dict:
     week = next((w for w in t["weeks"] if templates.in_week(s, w)), None)
     audience = s["group_id"] if s["group_id"] is not None else templates.ALL
     here = [c["id"] for c in templates.week_classes(conn, s["course_id"], week, audience)] if week else []
+    reopened = register.reopenings(conn, s["id"])
     return {"open": {"class_id": s["id"], "course_id": s["course_id"], "code": s["code"],
+                     # Set for a class opened again after it ended: since when, and how many were
+                     # present before, so every screen says "open again" rather than "started".
+                     "reopened_at": reopened[-1]["reopened_at"] if reopened else None,
+                     "present_before": reopened[-1]["present_before"] if reopened else None,
                      "group": s["group_name"], "group_id": s["group_id"],
                      "opened_at": s["opened_at"], "present": totals["present"],
                      "students": totals["students"],

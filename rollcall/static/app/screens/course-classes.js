@@ -129,7 +129,8 @@ function weeks(rows, course, reload) {
               : `${s.start_time} to ${s.end_time}`) },
           ...forColumn,
           { label: "How it was recorded", render: (s) =>
-            s.opened_at ? "Taken live" : s.kind === "device" ? "Found from scans" : "Recorded by hand" },
+            s.opened_at ? (s.reopened ? "Taken live, reopened" : "Taken live")
+              : s.kind === "device" ? "Found from scans" : "Recorded by hand" },
           { label: "", render: (s) => s.cancelled_at
             ? h("div", {},
               h("span", { class: "hw-pill", dataset: { tone: "neutral" } },

@@ -5,6 +5,7 @@ import { define, current, go, match, start } from "./router.js";
 import { session } from "./session.js";
 import * as shell from "./shell.js";
 import { announce, button, clear, dialog, errorState, fill, h, loadingCards } from "./ui.js";
+import { appearanceChoice } from "./appearance.js";
 
 // -- the routes ------------------------------------------------------------------------------
 // Each screen is loaded the first time its route opens, so starting the app parses one screen.
@@ -200,7 +201,9 @@ function accountMenu() {
         h("dt", {}, "Username"), h("dd", {}, me.username),
         h("dt", {}, "Role"), h("dd", {}, me.role || "None")),
       h("p", { class: "hw-muted" },
-        "Your role decides what you can do. Anything it does not allow stays on screen with the reason written on it.")),
+        "Your role decides what you can do. Anything it does not allow stays on screen with the reason written on it."),
+      // Here because the account menu is on every screen and needs no permission (2026-10-22).
+      appearanceChoice({ legend: "Appearance on this computer", name: "appearance-menu", quiet: true })),
     actions: [
       button({ label: "Sign out", variant: "destructive", onClick: signOut }),
       h("span", { class: "hw-cardfoot__end" },

@@ -531,7 +531,9 @@ export class HwSheet extends HTMLElement {
     if (c.slot.state === "upcoming") return `${where}, not yet held`;
     // On a group's sheet a class is either the group's own or one for everybody on the course.
     const whose = this._data?.groups ? (c.slot.group ? `, ${c.slot.group}'s class` : ", a class for everybody") : "";
-    if (c.slot.state === "open") return `${where}${whose}, taking attendance now, since ${c.slot.start_time}`;
+    if (c.slot.state === "open") return c.slot.reopened_at
+      ? `${where}${whose}, open again now, since ${c.slot.reopened_at.slice(11, 16)}`
+      : `${where}${whose}, taking attendance now, since ${c.slot.start_time}`;
     return `${where}${whose}, ${longDate(c.slot.date)} ${c.slot.start_time}`;
   }
 

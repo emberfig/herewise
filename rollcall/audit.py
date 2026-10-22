@@ -86,6 +86,8 @@ SENTENCES = {
     "session.create": "Recorded a class: {detail}",
     "session.live_start": "Started taking attendance: {detail}",
     "session.live_end": "Ended taking attendance: {detail}",
+    "session.live_reopen": "Reopened a class for the students who had not scanned: {detail}",
+    "session.live_end_again": "Ended a reopened class: {detail}",
     "session.week": "Moved a class to another week of the sheet: {detail}",
     "session.group": "Changed which group a class was for: {detail}",
     "person.edit": "Changed a student's details: {detail}",

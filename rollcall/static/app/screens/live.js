@@ -15,8 +15,13 @@ import {
   announce, button, chip, clockTime, dialog, emptyState, errorState, field, fill, h, loadingCards,
   page, panel, plural, section, setBusy, toast,
 } from "../ui.js";
+import { reopenButton, windowsText } from "./reopen.js";
 
 const EVERY_MS = 2000;
+
+// A class opened again after it ended, for whoever had not scanned (2026-10-22), counts its time
+// from the reopening and says so wherever it says when it started.
+const since = (open) => open.reopened_at || open.opened_at;
 
 // The sheet the class is on: for a class for one group, that group's sheet rather than the first's.
 function sheetOf(open) {
@@ -91,7 +96,8 @@ class Live {
       title: "Taking attendance",
       // A class for one group says so wherever it is named: its register is that group's alone.
       subtitle: h("span", {}, `${o.code}${o.group ? ` ${o.group}` : ""}${o.week ? ` · ${o.week}, class ${o.position}` : ""}`
-        + ` · started ${clockTime(o.opened_at)}`, this.clock),
+        + (o.reopened_at ? ` · reopened ${clockTime(o.reopened_at)}, first started ${clockTime(o.opened_at)}`
+          : ` · started ${clockTime(o.opened_at)}`), this.clock),
       crumbs: [h("a", { class: "hw-link", href: href(sheetOf(o)) },
         h("span", { "aria-hidden": "true" }, "← "), o.code)],
       actions: [this.endButton],
@@ -101,8 +107,11 @@ class Live {
           h("div", {}, this.count, this.of),
           h("div", { class: "hw-gauge hw-live__gauge", role: "presentation" }, this.gauge)),
         h("p", { class: "hw-muted", style: { margin: "0 0 var(--hw-space-6)" } },
-          "Each student scans once at the terminal and appears here within a couple of seconds. "
-          + "Nobody is marked absent until you end attendance."),
+          o.reopened_at
+            ? "Reopened for the students who had not scanned. Everyone already present stays present. "
+              + "Nobody is marked absent until you end attendance again."
+            : "Each student scans once at the terminal and appears here within a couple of seconds. "
+              + "Nobody is marked absent until you end attendance."),
         h("div", { class: "hw-live__columns" },
           h("section", { class: "hw-section hw-live__column" }, this.scannedTitle, this.scannedList),
           h("section", { class: "hw-section hw-live__column" }, this.waitingTitle,
@@ -143,9 +152,10 @@ class Live {
     const t = register.totals;
     this.count.textContent = `${t.present} present`;
     this.of.textContent = `of ${plural(t.students, "student")} · ${t.waiting} not yet`
-      + (t.excused ? ` · ${t.excused} excused` : "");
+      + (t.excused ? ` · ${t.excused} excused` : "")
+      + (this.open.reopened_at ? ` · ${Math.max(0, t.present - this.open.present_before)} since it was reopened` : "");
     this.gauge.style.width = `${t.students ? Math.round((100 * t.present) / t.students) : 0}%`;
-    const minutes = Math.max(0, Math.floor((Date.now() - Date.parse(this.open.opened_at)) / 60000));
+    const minutes = Math.max(0, Math.floor((Date.now() - Date.parse(since(this.open))) / 60000));
     this.clock.textContent = ` · ${minutes ? plural(minutes, "minute") + " ago" : "just now"}`;
     this.drawTerminal(terminal);
     this.announceNew(register);
@@ -220,12 +230,14 @@ class Live {
     const when = field({ label: "Ended at", name: "ended_at", type: "time", value: hhmm, width: "short",
       help: "Change this only if the class finished earlier and you are ending it late." });
     const go = button({ label: "End attendance", primary: true, busyLabel: "Ending" });
+    const again = Boolean(this.open.reopened_at);
+    const more = again ? Math.max(0, t.present - this.open.present_before) : 0;
     const box = dialog({
-      title: `End attendance for ${this.open.code}${this.open.group ? ` ${this.open.group}` : ""}?`,
+      title: `End attendance for ${this.open.code}${this.open.group ? ` ${this.open.group}` : ""}${again ? " again" : ""}?`,
       body: h("div", { class: "hw-stack hw-stack--tight" },
         h("p", { style: { margin: 0 } },
-          `${t.present} present. `
-          + (t.waiting ? `The ${plural(t.waiting, "student")} who have not scanned will be marked absent.`
+          `${t.present} present${again ? `, ${more} of them since it was reopened` : ""}. `
+          + (t.waiting ? `The ${plural(t.waiting, "student")} who have not scanned will be marked absent${again ? " again" : ""}.`
             : "Everybody has scanned.")),
         h("p", { class: "hw-muted", style: { margin: 0 } },
           "Herewise reads the terminal once more first, so a scan made in the last seconds still "
@@ -264,19 +276,27 @@ class Live {
     const where = sheet?.week ? `It is ${sheet.week}'s ${ordinal || ""} class on the sheet.`.replace("  ", " ")
       : sheet?.outside ? "It falls outside the weeks on the sheet: change the weeks in Sheet setup to show it."
         : "";
+    const last = (register.reopenings || []).at(-1);
+    const came = last ? ` ${plural(Math.max(0, t.present - last.present_before), "student")} came in while it was reopened.` : "";
     fill(this.host, page({
       title: "Attendance taken",
-      subtitle: `${o.code}${o.group ? ` ${o.group}` : ""} · ${clockTime(register.session.opened_at)} to `
-        + `${clockTime(register.session.closed_at)}`,
+      subtitle: `${o.code}${o.group ? ` ${o.group}` : ""} · `
+        + (windowsText(register) || `${clockTime(register.session.opened_at)} to ${clockTime(register.session.closed_at)}`),
       crumbs: [h("a", { class: "hw-link", href: href(sheetOf(o)) },
         h("span", { "aria-hidden": "true" }, "← "), o.code)],
       children: [
         panel({ tone: "success", role: "status", title: `${t.present} present, ${t.absent} absent`
           + (t.excused ? `, ${t.excused} excused` : ""),
-        body: `Everybody who did not scan is marked absent. ${where}`.trim() }),
+        body: `Everybody who did not scan is marked absent.${came} ${where}`.trim() }),
         h("p", { class: "hw-row", style: { marginBlockStart: "var(--hw-space-6)" } },
           button({ label: "Open the sheet", primary: true, href: href(sheetOf(o)) }),
           button({ label: "See who was absent", href: href(`classes/${register.session.id}`) })),
+        // Missed somebody? Open it again for whoever has not scanned, the same day.
+        register.reopen ? h("div", { class: "hw-stack hw-stack--tight", style: { marginBlockStart: "var(--hw-space-6)" } },
+          h("p", { class: "hw-muted", style: { margin: 0 } },
+            "Missed somebody? Reopen attendance and whoever has not scanned can scan now. "
+            + "Everyone present stays present."),
+          h("div", {}, reopenButton(register, this.ctx.go))) : null,
       ],
     }));
   }

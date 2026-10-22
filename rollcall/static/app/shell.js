@@ -333,8 +333,11 @@ function highest() {
     return h("p", { class: "hw-banner", dataset: { tone: "busy" }, role: "status" },
       h("span", { "aria-hidden": "true" }, "◔"),
       h("span", {}, `${b.live.code}${b.live.group ? ` ${b.live.group}` : ""}${b.live.week ? ` (${b.live.week}, class ${b.live.position})` : ""}`
-        + ` is taking attendance, since ${b.live.opened_at.slice(11, 16)}: `
-        + `${b.live.present} of ${b.live.students} present so far. Nobody is absent until it is ended.`),
+        + (b.live.reopened_at
+          ? ` is open again for the students who had not scanned, since ${b.live.reopened_at.slice(11, 16)}: `
+            + `${b.live.present} of ${b.live.students} present so far. Nobody is absent until it is ended again.`
+          : ` is taking attendance, since ${b.live.opened_at.slice(11, 16)}: `
+            + `${b.live.present} of ${b.live.students} present so far. Nobody is absent until it is ended.`)),
       session.can("register.pull")
         ? h("a", { class: "hw-banner__spacer", href: href("live") }, "Open it")
         : null);

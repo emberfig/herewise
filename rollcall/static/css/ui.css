@@ -310,6 +310,10 @@
 .hw-choice__label { font-weight: var(--hw-weight-label); }
 /* Let a long description wrap rather than truncate (screen 8 deviation). */
 .hw-choice__help { color: var(--hw-ink-muted); font-size: var(--hw-text-body); }
+/* System, Light and Dark side by side where there is room, one under another where there is not. */
+.hw-appearance { display: grid; gap: var(--hw-space-2); grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+/* Labels only, in the account menu: three short words fit one line in a dialog. */
+.hw-appearance--quiet { grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); }
 
 /* -- panels: the one-line answer above a form ---------------------------------------------- */
 

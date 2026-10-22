@@ -173,7 +173,8 @@ def remove(conn: sqlite3.Connection, level_id: int, account_id: int | None) -> d
 # attendance back.
 
 # The triggers that refuse a DELETE on attendance (db.py, SCHEMA and SCHEMA_V5).
-DELETE_GUARDS = ("punches_immutable_delete", "marks_immutable_delete", "requests_no_delete")
+DELETE_GUARDS = ("punches_immutable_delete", "marks_immutable_delete", "requests_no_delete",
+                 "reopenings_immutable_delete")
 
 
 def _ids(conn: sqlite3.Connection, sql: str, args: tuple) -> list[int]:
@@ -279,7 +280,7 @@ def clear(conn: sqlite3.Connection, level_id: int, account_id: int | None, termi
         # for this transaction only. SQLite's DDL is transactional, so the guards come back on commit
         # and on any failure alike. The activity log keeps its guard and records what went.
         guards = conn.execute(
-            "SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND name IN (?, ?, ?)",
+            f"SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND name IN ({_marks(DELETE_GUARDS)})",
             DELETE_GUARDS).fetchall()
         for guard in guards:
             run(f"DROP TRIGGER {guard['name']}")
@@ -287,6 +288,7 @@ def clear(conn: sqlite3.Connection, level_id: int, account_id: int | None, termi
             f" OR person_id IN ({_marks(p)})", (*k, *p))
         run(f"DELETE FROM attendance_marks WHERE class_session_id IN ({_marks(k)})"
             f" OR person_id IN ({_marks(p)})", (*k, *p))
+        run(f"DELETE FROM class_reopenings WHERE class_session_id IN ({_marks(k)})", tuple(k))
         run(f"DELETE FROM class_sessions WHERE id IN ({_marks(k)})", tuple(k))
         run(f"DELETE FROM excusals WHERE course_id IN ({_marks(c)}) OR person_id IN ({_marks(p)})", (*c, *p))
         run(f"DELETE FROM course_enrolments WHERE course_id IN ({_marks(c)})"

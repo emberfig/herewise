@@ -8,6 +8,9 @@
 <!-- Everything below ships with the app. Nothing is ever fetched from outside: this runs in a
      lecture theatre with no internet (PRD), and the Content-Security-Policy in rollcall/app.py
      refuses it anyway. -->
+<!-- System, Light or Dark as chosen on this computer, set before anything paints so a dark screen
+     never opens on a light frame. A classic script, not a module: modules wait for the page. -->
+<script src="/api/appearance.js"></script>
 <link rel="stylesheet" href="/css/tokens.css">
 <link rel="stylesheet" href="/fonts/fonts.css">
 <link rel="stylesheet" href="/css/base.css">

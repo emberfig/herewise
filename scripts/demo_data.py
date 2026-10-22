@@ -23,7 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from rollcall import auth, courses, db, groups, register, roles, roster, templates  # noqa: E402
+from rollcall import appearance, auth, courses, db, groups, register, roles, roster, templates  # noqa: E402
 from rollcall.device import RawPunch  # noqa: E402
 from rollcall.punches import store_punches  # noqa: E402
 
@@ -292,6 +292,8 @@ def main() -> None:
         path.unlink()
         for extra in folder.glob("rollcall.db-*"):
             extra.unlink()
+        # Back to System, so a screen check that emulates light and dark gets what it asks for.
+        (folder / appearance.FILE).unlink(missing_ok=True)
 
     conn = db.connect(path)
     db.initialise(conn)

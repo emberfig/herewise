@@ -7,8 +7,24 @@ Every release names the files it is made of and their SHA-256 checksums, in `SHA
 beside the download. Check one before running it:
 
 ```powershell
-Get-FileHash .\Herewise-Setup-0.1.17.exe -Algorithm SHA256
+Get-FileHash .\Herewise-Setup-0.1.18.exe -Algorithm SHA256
 ```
+
+## 0.1.18
+
+- **Reopen attendance for the students who missed it.** A class taken live and ended can be opened
+  again, the same day, from the Attendance taken page or its class register. Whoever has not
+  scanned can scan; everyone present stays present, and corrections and excused absences stay as
+  they were. While it is open nobody is absent and it counts towards nothing, as at Start. End it
+  again and whoever still has not scanned is absent again. A scan made between the End and the
+  reopening does not count, so anyone who scanned then scans again. It needs the permission to
+  correct attendance, so a course rep asks for corrections instead. The activity log records the
+  reopening and the second end, with how many more came in.
+- **Light and dark.** Choose System, Light or Dark from your name at the top of any screen, in
+  Settings, or when setting Herewise up. System follows Windows, as before. The choice is kept for
+  this computer, not in the register, so downloading your data or restoring a backup does not carry
+  it, and it is applied before the window draws anything, so a dark screen never opens on a light
+  frame. Exported PDFs and Excel files look the same whichever you choose.
 
 ## 0.1.17
 

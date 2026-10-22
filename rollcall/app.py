@@ -18,8 +18,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 
-from . import (audit, auth, backups, courses, db, diagnostics, eligibility, enrollment, evidence, firstrun,
-               groups, jobs,
+from . import (appearance, audit, auth, backups, courses, db, diagnostics, eligibility, enrollment, evidence,
+               firstrun, groups, jobs,
                levels as levels_module, live, netsetup, pdf_fonts, progress, pulls, punches, register,
                reminders, restore, roles, roster, services, sheet_export, templates, today)
 from . import NAME, VERSION
@@ -1186,6 +1186,20 @@ def create_app(db_path: Path | None = None, k40_factory=K40) -> FastAPI:
         ensure_device_free()
         return live.end(conn, class_id, account["id"], factory, body.ended_at)
 
+    @app.post("/api/live/{class_id}/reopen")
+    def live_reopen(class_id: int, account: Corrector, conn: Conn):
+        """Open an ended class again for whoever had not scanned (asked for on 2026-10-22).
+
+        Gated on correcting attendance, because its effect is a correction: absent becomes present
+        on a class already counted. Someone who may only ask for corrections asks for those instead.
+        It also reads the terminal, so it needs that permission too.
+        """
+        if not roles.has(conn, account, "register.pull"):
+            raise HTTPException(403, roles.denial("register.pull"))
+        ensure_device_free()
+        live.reopen(conn, class_id, account["id"], factory)
+        return live_view(conn, class_id, live.refresh(conn, class_id, factory, force=True))
+
     # -- today ---------------------------------------------------------------------------
 
     @app.get("/api/today")
@@ -1404,7 +1418,8 @@ def create_app(db_path: Path | None = None, k40_factory=K40) -> FastAPI:
             # class where the sheet shows it rather than by the calendar week of its date.
             out.append({**dict(row), "holds": register.name_holds(held),
                         "blocking": register.name_holds(stops), "can_delete": not stops,
-                        "sheet_week": live.sheet_week(conn, row), "open": register.is_open(row)})
+                        "sheet_week": live.sheet_week(conn, row), "open": register.is_open(row),
+                        "reopened": len(register.reopenings(conn, row["id"])) if row["opened_at"] else 0})
         return out
 
     class MoveWeekIn(BaseModel):
@@ -1461,7 +1476,8 @@ def create_app(db_path: Path | None = None, k40_factory=K40) -> FastAPI:
 
     @app.get("/api/sessions/{session_id}/register")
     def session_register(session_id: int, _: Reader, conn: Conn):
-        return register.session_register(conn, session_id)
+        # Whether the class can be opened again for whoever had not scanned, and why not if not.
+        return {**register.session_register(conn, session_id), "reopen": live.reopen_offer(conn, session_id)}
 
     @app.get("/api/sessions/{session_id}/students/{person_id}")
     def session_cell(session_id: int, person_id: int, _: Reader, conn: Conn):
@@ -1797,6 +1813,31 @@ def create_app(db_path: Path | None = None, k40_factory=K40) -> FastAPI:
     def restore_cancel(token: str, _: Restorer):
         restore.discard(app.state.db_path.parent, token)
         return {"ok": True}
+
+    # -- how it looks on this computer ------------------------------------------------------
+    # System, Light or Dark (asked for on 2026-10-22). Kept beside the register, not in it, and
+    # read by the page's head before it paints (rollcall/appearance.py).
+
+    class AppearanceIn(BaseModel):
+        theme: Literal["system", "light", "dark"]
+
+    @app.get("/api/appearance.js")
+    def appearance_script():
+        """Before anything else, on every screen including sign in and setup, so nothing flashes."""
+        return Response(appearance.script(appearance.read(app.state.db_path.parent)),
+                        media_type="text/javascript")
+
+    @app.get("/api/appearance")
+    def appearance_read():
+        return {"theme": appearance.read(app.state.db_path.parent), "choices": list(appearance.CHOICES)}
+
+    @app.put("/api/appearance")
+    def appearance_write(body: AppearanceIn, request: Request, conn: Conn):
+        """Anyone signed in on this computer, or anybody during first-run setup, which offers it once.
+        It changes nothing in the register, so it needs no permission and writes no activity row."""
+        if firstrun.done(conn) and auth.account_for_token(conn, request.cookies.get(COOKIE)) is None:
+            raise HTTPException(401, "Please log in.")
+        return {"theme": appearance.write(app.state.db_path.parent, body.theme)}
 
     if STATIC_DIR.is_dir():
         app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
