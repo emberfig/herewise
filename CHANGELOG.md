@@ -7,8 +7,19 @@ Every release names the files it is made of and their SHA-256 checksums, in `SHA
 beside the download. Check one before running it:
 
 ```powershell
-Get-FileHash .\Herewise-Setup-0.1.18.exe -Algorithm SHA256
+Get-FileHash .\Herewise-Setup-0.1.19.exe -Algorithm SHA256
 ```
+
+## 0.1.19
+
+- **Microsoft's WebView2 licence now travels with Herewise.** The window is drawn by Microsoft's
+  WebView2 files, which came inside 0.1.17 and 0.1.18 without the notice their BSD-style licence
+  asks for. It is now in the program's `licences` folder as `WebView2-SDK-BSD.txt`. Nothing else in
+  the program changed.
+- **Releases are also built on GitHub.** Every tagged release is now built by GitHub Actions from
+  this repository's source (`.github/workflows/release.yml`). Code signing through SignPath
+  Foundation needs this step. The installer here is still built and checked by hand, and is not yet
+  signed.
 
 ## 0.1.18
 

@@ -5,6 +5,15 @@
     python packaging/build.py --release  the same, and refuses to finish unless both executables
                                          are signed, timestamped and verify (packaging/signing.py)
 
+In steps, for a build signed elsewhere (.github/workflows/release.yml, where SignPath signs each
+executable between steps):
+
+    python packaging/build.py --app        the app folder; Herewise.exe is then signed
+    python packaging/build.py --installer  the installer from the app folder already in dist/,
+                                           never rebuilt, so it carries the signed Herewise.exe
+    python packaging/build.py --finish     the changelog, the source archive and the checksums,
+                                           last, because signing changes the bytes they check
+
 Signing happens whenever a certificate is configured (packaging/signing.py says how): the app's
 Herewise.exe before it is packed into the installer, then the installer, then the checksums.
 
@@ -89,6 +98,11 @@ def build_app() -> None:
     if apache is None:
         raise SystemExit("no Apache License text found in the build, so OpenSSL's licence would not travel")
     shutil.copy2(apache, licences / "Apache-2.0.txt")
+    # pywebview brings Microsoft's WebView2 SDK files as binaries under a BSD licence whose notice
+    # must travel with them. pywebview's own licence does not carry it, so it travels from here.
+    if not any(APP.glob("_internal/webview/lib/**/*WebView2*.dll")):
+        raise SystemExit("no WebView2 SDK files in the build, so the window could not open")
+    shutil.copy2(ROOT / "packaging" / "licences" / "WebView2-SDK-BSD.txt", licences / "WebView2-SDK-BSD.txt")
     (licences / "README.txt").write_text(
         f"{NAME} {VERSION}\n\n"
         "Herewise is free software: you can redistribute it and/or modify it under the terms of the\n"
@@ -99,6 +113,8 @@ def build_app() -> None:
         "The typefaces here are under the SIL Open Font License 1.1.\n"
         "OpenSSL 3, inside Python's ssl module and inside cryptography, is under the Apache\n"
         "License 2.0 (Apache-2.0.txt).\n"
+        "Microsoft's WebView2 SDK files, which draw the window, are under the BSD-style licence\n"
+        "in WebView2-SDK-BSD.txt.\n"
         "The libraries Herewise names on its About screen are listed there with their licences,\n"
         "read from the packages themselves rather than from a written list. Each package's own\n"
         "licence files are in its .dist-info folder under _internal.\n", encoding="utf-8")
@@ -187,6 +203,17 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def finish(require_source: bool) -> None:
+    """The changelog, the source archive and the checksums: last, since signing changes the bytes."""
+    installer = DIST / f"{INSTALLER_NAME}.exe"
+    if not installer.exists():
+        raise SystemExit(f"nothing to finish: {installer.name} has not been built")
+    shutil.copy2(ROOT / "CHANGELOG.md", DIST / "CHANGELOG.md")
+    if source_archive() is None and require_source:
+        raise SystemExit("A release carries its source, and this tree has uncommitted changes.")
+    checksums()
+
+
 def sign_file(signer: signing.Signer | None, path: Path, description: str, release: bool) -> None:
     if signer is None:
         print(f"  NOT SIGNED: {path.name}. Windows will warn anyone who runs it. Fine for a test "
@@ -201,6 +228,16 @@ def sign_file(signer: signing.Signer | None, path: Path, description: str, relea
 def main() -> None:
     if os.name != "nt":
         raise SystemExit("Herewise is a Windows program, so it is built on Windows.")
+    if "--installer" in sys.argv:
+        if not (APP / f"{NAME}.exe").exists():
+            raise SystemExit(f"--installer packs the app folder already built, and {APP} has no {NAME}.exe")
+        build_installer()
+        print("Done.")
+        return
+    if "--finish" in sys.argv:
+        finish(require_source=True)
+        print("Done.")
+        return
     only_app = "--app" in sys.argv
     release = "--release" in sys.argv
     try:
@@ -219,10 +256,7 @@ def main() -> None:
         if not only_app:
             build_installer()
             sign_file(signer, DIST / f"{INSTALLER_NAME}.exe", f"{NAME} installer", release)
-            shutil.copy2(ROOT / "CHANGELOG.md", DIST / "CHANGELOG.md")
-            if source_archive() is None and release:
-                raise SystemExit("A release carries its source, and this tree has uncommitted changes.")
-            checksums()                    # last: signing changes the bytes being checked
+            finish(require_source=release)
     except signing.SigningError as error:
         raise SystemExit(f"Signing failed, so this build must not be handed to anyone: {error}") from error
     print("Done.")
